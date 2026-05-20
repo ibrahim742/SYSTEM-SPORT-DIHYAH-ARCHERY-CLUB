@@ -1,0 +1,454 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  COACH
+  MURID
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum Level {
+  PENGENALAN
+  DASAR
+  LANJUTAN
+  PRESTASI
+}
+
+enum StudentStatus {
+  AKTIF
+  PEMULIHAN
+  NONAKTIF
+}
+
+enum TrainingStatus {
+  SELESAI
+  PROSES
+  BELUM
+}
+
+enum AttendanceStatus {
+  HADIR
+  TIDAK_MASUK
+  IZIN
+  SAKIT
+  ALPA
+}
+
+enum AssignmentStatus {
+  AKTIF
+  SELESAI
+  DIBATALKAN
+}
+
+enum ProgramType {
+  LATIHAN
+  PERSIAPAN_TURNAMEN
+}
+
+enum Gender {
+  LAKI_LAKI
+  PEREMPUAN
+}
+
+model User {
+  id            String     @id @default(cuid())
+  name          String?
+  email         String?    @unique
+  emailVerified DateTime?  @map("email_verified")
+  image         String?
+  username      String     @unique
+  passwordHash  String
+  role          Role
+  status        UserStatus @default(ACTIVE)
+  lastLogin     DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
+
+  accounts       Account[]
+  sessions       Session[]
+  coachClubs     CoachClub[]
+  coachProfile   CoachProfile?
+  studentProfile Student?
+  auditLogs      AuditLog[]
+  createdScores  CoachScore[]  @relation("CoachScores")
+  coachedStudents Student[]      @relation("AssignedCoach")
+  createdPrograms Program[]      @relation("ProgramCreator")
+
+  @@index([role, status])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Club {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  city      String?
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+
+  students   Student[]
+  coachClubs CoachClub[]
+}
+
+model CoachClub {
+  id        String   @id @default(cuid())
+  coachId   String
+  clubId    String
+  createdAt DateTime @default(now())
+
+  coach User @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  club  Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([coachId, clubId])
+  @@index([clubId])
+}
+
+model Sport {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  slug        String     @unique
+  icon        String?
+  description String?
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  coachProfiles CoachProfile[]
+  students      Student[]
+  programs      Program[]
+}
+
+model CoachCategory {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  slug        String     @unique
+  description String?
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  coachProfiles CoachProfile[]
+}
+
+model CoachProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  sportId         String
+  categoryId      String
+  phone           String    @unique
+  gender          Gender
+  birthDate       DateTime?
+  address         String?
+  photoUrl        String?
+  experienceYears Int       @default(0)
+  certification   String?
+  bio             String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sport    Sport         @relation(fields: [sportId], references: [id])
+  category CoachCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([sportId])
+  @@index([categoryId])
+}
+
+model SystemSetting {
+  id              String   @id @default(cuid())
+  key             String   @unique @default("default")
+  systemName      String   @default("DIHYAH ARCHERY CLUB")
+  systemSubtitle  String   @default("Coach Panel")
+  loginSubtitle   String   @default("Masuk untuk monitoring latihan panahan.")
+  contactWhatsapp String?
+  logoUrl         String?
+  faviconUrl      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model LandingSection {
+  id          String     @id @default(cuid())
+  key         String     @unique
+  title       String
+  subtitle    String?
+  description String?
+  eyebrow     String?
+  imageUrl    String?
+  ctaLabel    String?
+  ctaHref     String?
+  status      UserStatus @default(ACTIVE)
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  items LandingItem[]
+
+  @@index([status, sortOrder])
+}
+
+model LandingItem {
+  id          String     @id @default(cuid())
+  sectionKey  String
+  title       String
+  subtitle    String?
+  description String?
+  eyebrow     String?
+  imageUrl    String?
+  ctaLabel    String?
+  ctaHref     String?
+  icon        String?
+  value       String?
+  href        String?
+  sortOrder   Int        @default(0)
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  section LandingSection @relation(fields: [sectionKey], references: [key], onDelete: Cascade)
+
+  @@index([sectionKey, status, sortOrder])
+}
+
+model Student {
+  id         String        @id @default(cuid())
+  userId     String?       @unique
+  clubId     String
+  sportId    String
+  coachId    String?
+  name       String
+  birthDate  DateTime?
+  age        Int
+  branch     String
+  level      Level
+  phone      String
+  address    String?
+  photoUrl   String?
+  status     StudentStatus @default(AKTIF)
+  progress   Int           @default(0)
+  attendance Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  deletedAt  DateTime?
+
+  user              User?               @relation(fields: [userId], references: [id])
+  coach             User?               @relation("AssignedCoach", fields: [coachId], references: [id], onDelete: SetNull)
+  club              Club                @relation(fields: [clubId], references: [id])
+  sport             Sport               @relation(fields: [sportId], references: [id])
+  assignments       ProgramAssignment[]
+  attendanceRecords AttendanceRecord[]
+  scores            CoachScore[]
+  trainingLogs      TrainingLog[]
+
+  @@index([clubId])
+  @@index([sportId])
+  @@index([coachId])
+  @@index([level, status])
+}
+
+model Program {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  sportId     String
+  type        ProgramType @default(LATIHAN)
+  createdById String?
+  name        String
+  level       Level
+  duration    String
+  materials   Int
+  intensity   String
+  description String?
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  sport       Sport             @relation(fields: [sportId], references: [id])
+  createdBy   User?             @relation("ProgramCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  details     ProgramMaterial[]
+  assignments ProgramAssignment[]
+
+  @@index([sportId, type, status])
+  @@index([createdById])
+}
+
+model ProgramMaterial {
+  id        String   @id @default(cuid())
+  programId String
+  day       String
+  material  String
+  set       String
+  reps      String
+  duration  String
+  note      String?
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([programId, order])
+}
+
+model ProgramAssignment {
+  id         String           @id @default(cuid())
+  studentId  String
+  programId  String
+  status     AssignmentStatus @default(AKTIF)
+  assignedAt DateTime         @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  deletedAt  DateTime?
+
+  student Student @relation(fields: [studentId], references: [id])
+  program Program @relation(fields: [programId], references: [id])
+
+  @@index([studentId, status])
+  @@index([programId])
+}
+
+model AttendanceSession {
+  id        String    @id @default(cuid())
+  date      DateTime
+  title     String
+  note      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  records AttendanceRecord[]
+
+  @@unique([date, title])
+}
+
+model AttendanceRecord {
+  id        String           @id @default(cuid())
+  sessionId String
+  studentId String
+  status    AttendanceStatus
+  checkIn   String?
+  checkOut  String?
+  note      String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student           @relation(fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@index([studentId, status])
+}
+
+model CoachScore {
+  id        String    @id @default(cuid())
+  studentId String
+  coachId   String?
+  material  String
+  technique Int
+  focus     Int
+  stamina   Int
+  grade     String
+  note      String?
+  scoredAt  DateTime  @default(now())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  student Student @relation(fields: [studentId], references: [id])
+  coach   User?   @relation("CoachScores", fields: [coachId], references: [id])
+
+  @@index([studentId, scoredAt])
+  @@index([coachId])
+}
+
+model TrainingLog {
+  id        String         @id @default(cuid())
+  studentId String
+  date      DateTime       @default(now())
+  result    String
+  duration  String
+  rpe       Int
+  note      String?
+  status    TrainingStatus @default(PROSES)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  deletedAt DateTime?
+
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@index([studentId, date])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entity, entityId])
+}
