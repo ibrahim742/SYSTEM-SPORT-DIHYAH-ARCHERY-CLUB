@@ -17,6 +17,7 @@ const noHtmlText = z.string().max(1000).refine((value) => !/[<>]/.test(value), "
 const requiredTextSchema = noHtmlText.min(2);
 export const nullableTextSchema = z.preprocess((value) => (value === "" ? null : value), noHtmlText.optional().nullable());
 export const optionalEmailSchema = z.preprocess((value) => (value === "" ? null : value), z.string().email().optional().nullable());
+export const requiredEmailSchema = z.string().email().max(191);
 const phoneSchema = z.string().min(6).max(20).regex(/^[0-9+\-\s()]+$/);
 const optionalPhoneSchema = z.preprocess((value) => (value === "" ? undefined : value), phoneSchema.optional());
 const nullablePhoneSchema = z.preprocess((value) => (value === "" ? null : value), phoneSchema.optional().nullable());
@@ -274,3 +275,12 @@ export const notificationReadSchema = z
     ids: z.array(idSchema).max(100).optional()
   })
   .refine((payload) => payload.all || Boolean(payload.ids?.length), "Pilih notifikasi yang akan ditandai terbaca");
+
+export const forgotPasswordSchema = z.object({
+  email: requiredEmailSchema
+});
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(32).max(256),
+  password: passwordSchema
+});

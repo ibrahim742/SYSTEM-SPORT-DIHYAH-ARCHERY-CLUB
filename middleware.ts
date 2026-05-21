@@ -1,7 +1,7 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
 
-const publicPrefixes = ["/login", "/api/auth", "/api/landing", "/_next", "/favicon.ico"];
+const publicPrefixes = ["/login", "/lupa-password", "/reset-password", "/api/auth", "/api/landing", "/_next", "/favicon.ico"];
 const muridPrefixes = [
   "/portal",
   "/profil",

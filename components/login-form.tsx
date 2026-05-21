@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import type React from "react";
 import { useState } from "react";
 import { getSession, signIn } from "next-auth/react";
@@ -84,6 +85,11 @@ export function LoginForm({ branding, callbackUrl }: { branding: LoginBranding; 
           <Button className="w-full" disabled={loading} type="submit">
             {loading ? "Memproses..." : "Masuk"}
           </Button>
+          <div className="text-right">
+            <Link className="text-xs font-semibold text-emerald-700 hover:text-emerald-800" href="/lupa-password">
+              Lupa password?
+            </Link>
+          </div>
         </form>
       </section>
     </main>
