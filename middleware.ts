@@ -112,7 +112,7 @@ export async function middleware(request: NextRequest) {
     return withSecurityHeaders(NextResponse.json({ error: "Origin request tidak valid" }, { status: 403 }), request);
   }
 
-  if (pathname.startsWith("/api/auth")) {
+  if (pathname.startsWith("/api/auth") && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
     const retryAfter = rateLimit(request, "auth", 30, 5 * 60 * 1000);
     if (retryAfter) {
       const response = NextResponse.json({ error: `Terlalu banyak request. Coba lagi dalam ${retryAfter} detik` }, { status: 429 });
@@ -132,7 +132,8 @@ export async function middleware(request: NextRequest) {
 
   const token = await getToken({
     req: request,
-    secret: process.env.AUTH_SECRET
+    secret: process.env.AUTH_SECRET,
+    secureCookie: request.nextUrl.protocol === "https:" || request.headers.get("x-forwarded-proto") === "https"
   });
 
   if (!token) {
