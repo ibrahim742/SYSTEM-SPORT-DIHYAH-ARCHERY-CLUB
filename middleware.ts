@@ -55,18 +55,46 @@ function originFrom(value: string | null) {
   }
 }
 
+function addOrigin(origins: Set<string>, value: string | null | undefined) {
+  if (!value) return;
+
+  const origin = originFrom(value);
+  if (origin && origin !== "invalid") {
+    origins.add(origin);
+  }
+}
+
+function allowedOrigins(request: NextRequest) {
+  const origins = new Set<string>();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || request.headers.get("host");
+  const proto = forwardedProto || request.nextUrl.protocol.replace(":", "");
+
+  addOrigin(origins, request.nextUrl.origin);
+  addOrigin(origins, process.env.AUTH_URL);
+  addOrigin(origins, process.env.NEXTAUTH_URL);
+
+  if (host) {
+    addOrigin(origins, `${proto}://${host}`);
+    addOrigin(origins, `https://${host}`);
+  }
+
+  return origins;
+}
+
 function isUnsafeApiRequest(request: NextRequest) {
   if (!request.nextUrl.pathname.startsWith("/api/")) return false;
   if (request.nextUrl.pathname.startsWith("/api/auth")) return false;
   if (["GET", "HEAD", "OPTIONS"].includes(request.method)) return false;
 
-  const expectedOrigin = request.nextUrl.origin;
+  const safeOrigins = allowedOrigins(request);
   const origin = originFrom(request.headers.get("origin"));
   const referer = originFrom(request.headers.get("referer"));
 
   if (!origin && !referer) return true;
 
-  return (origin && origin !== expectedOrigin) || (!origin && referer && referer !== expectedOrigin);
+  return (origin && !safeOrigins.has(origin)) || (!origin && referer && !safeOrigins.has(referer));
 }
 
 function withSecurityHeaders(response: NextResponse, request: NextRequest) {

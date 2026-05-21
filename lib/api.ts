@@ -103,17 +103,59 @@ export async function requireRole(roles: Role[]) {
   return session;
 }
 
-export function assertSameOrigin(request: Request) {
+function originFrom(value: string | null) {
+  if (!value) return null;
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "invalid";
+  }
+}
+
+function addOrigin(origins: Set<string>, value: string | null | undefined) {
+  if (!value) return;
+
+  const origin = originFrom(value);
+  if (origin && origin !== "invalid") {
+    origins.add(origin);
+  }
+}
+
+function allowedOrigins(request: Request) {
   const requestUrl = new URL(request.url);
+  const origins = new Set<string>();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || request.headers.get("host");
+  const proto = forwardedProto || requestUrl.protocol.replace(":", "");
+
+  addOrigin(origins, requestUrl.origin);
+  addOrigin(origins, process.env.AUTH_URL);
+  addOrigin(origins, process.env.NEXTAUTH_URL);
+
+  if (host) {
+    addOrigin(origins, `${proto}://${host}`);
+    addOrigin(origins, `https://${host}`);
+  }
+
+  return origins;
+}
+
+export function assertSameOrigin(request: Request) {
+  const safeOrigins = allowedOrigins(request);
   const origin = request.headers.get("origin");
   const referer = request.headers.get("referer");
 
   try {
-    if (origin && new URL(origin).origin !== requestUrl.origin) {
+    const parsedOrigin = originFrom(origin);
+    const parsedReferer = originFrom(referer);
+
+    if (parsedOrigin && !safeOrigins.has(parsedOrigin)) {
       throw new ApiError(403, "Origin request tidak valid");
     }
 
-    if (!origin && referer && new URL(referer).origin !== requestUrl.origin) {
+    if (!parsedOrigin && parsedReferer && !safeOrigins.has(parsedReferer)) {
       throw new ApiError(403, "Referer request tidak valid");
     }
   } catch (error) {
