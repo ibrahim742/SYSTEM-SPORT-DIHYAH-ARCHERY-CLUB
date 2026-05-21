@@ -1,48 +1,39 @@
 #!/usr/bin/env node
 
-/**
- * Production Server for Jagoan Hosting cPanel
- * Runs Next.js application on specified port
- */
+const { createServer } = require("http");
+const { parse } = require("url");
+const next = require("next");
 
-const { spawn } = require('child_process');
-const path = require('path');
+const port = Number.parseInt(process.env.PORT || "3000", 10);
+const hostname = process.env.HOST || "0.0.0.0";
+const app = next({ dev: false, hostname, port });
+const handle = app.getRequestHandler();
 
-// Get port from environment or default to 3000
-const PORT = process.env.PORT || 3000;
+app
+  .prepare()
+  .then(() => {
+    const server = createServer(async (req, res) => {
+      try {
+        await handle(req, res, parse(req.url, true));
+      } catch (error) {
+        console.error("Request handler failed", error);
+        res.statusCode = 500;
+        res.end("Internal Server Error");
+      }
+    });
 
-console.log('🚀 Starting SYSTEM-SPORT-DIHYAH-ARCHERY-CLUB...');
-console.log(`📱 Port: ${PORT}`);
-console.log(`🌍 Environment: ${process.env.NODE_ENV || 'production'}`);
+    server.listen(port, hostname, () => {
+      console.log(`Ready on http://${hostname}:${port}`);
+    });
 
-// Start Next.js production server
-const nextStart = spawn('node', [require.resolve('next/dist/bin/next'), 'start'], {
-  cwd: __dirname,
-  env: {
-    ...process.env,
-    PORT,
-    NODE_ENV: 'production',
-  },
-  stdio: 'inherit',
-});
+    const shutdown = () => {
+      server.close(() => process.exit(0));
+    };
 
-nextStart.on('error', (err) => {
-  console.error('❌ Error starting server:', err);
-  process.exit(1);
-});
-
-nextStart.on('exit', (code) => {
-  console.log(`⚠️ Server exited with code ${code}`);
-  process.exit(code);
-});
-
-// Handle graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('📛 SIGTERM signal received: closing HTTP server');
-  nextStart.kill();
-});
-
-process.on('SIGINT', () => {
-  console.log('📛 SIGINT signal received: closing HTTP server');
-  nextStart.kill();
-});
+    process.on("SIGTERM", shutdown);
+    process.on("SIGINT", shutdown);
+  })
+  .catch((error) => {
+    console.error("Server startup failed", error);
+    process.exit(1);
+  });

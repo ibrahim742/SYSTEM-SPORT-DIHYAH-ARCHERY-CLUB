@@ -16,6 +16,7 @@
 
 - [ ] **1.2** Create MySQL Database
   - Database Name: `dihyaharchery_club_db`
+  - Shadow Database Name: `dihyaharchery_club_db_shadow`
   - Status: _______________
 
 - [ ] **1.3** Create Database User
@@ -23,9 +24,10 @@
   - Password: (SECURE, simpan di password manager)
   - Status: _______________
 
-- [ ] **1.4** Add User to Database with Full Privileges
+- [ ] **1.4** Add User to Both Databases with Full Privileges
   - User: `dihyaharch_user`
   - Database: `dihyaharchery_club_db`
+  - Shadow Database: `dihyaharchery_club_db_shadow`
   - All privileges: ✓
   - Status: _______________
 
@@ -59,7 +61,7 @@
 
 - [ ] **2.4** Install NPM Dependencies
   ```bash
-  npm install --production
+  npm ci
   ```
   - Installation: ✓ Success
   - Packages: _____ installed
@@ -105,13 +107,19 @@
   - `public` folder: ✓ Exists
   - Status: ✓ Complete
 
-- [ ] **4.3** Update Node.js App Settings in cPanel
+- [ ] **4.3** Prune Development Dependencies
+  ```bash
+  npm prune --omit=dev
+  ```
+  - Runtime dependencies: ✓ Ready
+
+- [ ] **4.4** Update Node.js App Settings in cPanel
   - Startup File: `server.js`
   - Port: 3000 (or ________)
   - Application URL: dihyaharchery.com
   - Status: _______________
 
-- [ ] **4.4** Start/Restart Node.js Application
+- [ ] **4.5** Start/Restart Node.js Application
   - Application Status: 🟢 Running
   - Port: 3000 (or ________)
   - Status: ✓ Running

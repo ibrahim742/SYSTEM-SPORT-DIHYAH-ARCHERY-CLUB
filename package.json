@@ -6,6 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "start:cpanel": "node server.js",
     "lint": "next lint",
     "cache:clean": "rm -rf .next",
     "db:audit:mysql": "tsx scripts/audit-mysql-migration.ts",
