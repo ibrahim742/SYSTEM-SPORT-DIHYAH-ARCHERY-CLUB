@@ -27,7 +27,7 @@ export function AppShell({ children, user, branding }: { children: React.ReactNo
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
 
-  if (pathname === "/" || pathname === "/login") {
+  if (pathname === "/" || pathname === "/login" || pathname === "/lupa-password" || pathname === "/reset-password") {
     return <>{children}</>;
   }
 

@@ -3,12 +3,19 @@
 import type React from "react";
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, LockKeyhole } from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, BarChart3 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export function ResetPasswordForm({ token }: { token: string }) {
+type ResetPasswordBranding = {
+  systemName: string;
+  loginSubtitle: string;
+  logoUrl: string | null;
+};
+
+export function ResetPasswordForm({ branding, token }: { branding: ResetPasswordBranding; token: string }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,10 +56,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
     <main className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
       <section className="w-full max-w-sm overflow-hidden rounded-md border bg-white shadow-sm shadow-slate-200/70">
         <div className="border-b bg-gradient-to-r from-slate-50 via-white to-emerald-50/60 px-4 py-4">
-          <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-md bg-emerald-600 text-white">
-            <LockKeyhole className="h-5 w-5" />
+          <div className="mb-3 flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-emerald-600 text-white">
+            {branding.logoUrl ? <Image src={branding.logoUrl} alt={branding.systemName} width={36} height={36} unoptimized className="h-full w-full object-cover" /> : <BarChart3 className="h-5 w-5" />}
           </div>
-          <h1 className="text-base font-semibold">Reset password</h1>
+          <h1 className="text-base font-semibold">{branding.systemName}</h1>
           <p className="text-xs text-muted-foreground">Buat password baru minimal 8 karakter.</p>
         </div>
         <form className="space-y-3 p-4" onSubmit={handleSubmit}>
