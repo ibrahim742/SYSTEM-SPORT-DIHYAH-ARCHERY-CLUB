@@ -2,6 +2,7 @@ import { AssignProgramForm } from "@/components/assign-program-form";
 import { auth } from "@/lib/auth";
 import { levelLabel } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import { collapseTrainingLogDuplicates } from "@/lib/progress-analytics";
 import { scopedStudentWhere } from "@/lib/rbac";
 import { calculateStudentMetrics } from "@/lib/student-metrics";
 
@@ -55,7 +56,8 @@ export default async function AssignProgramPage() {
         materials: program.materials
       }))}
       students={students.map((student) => {
-        const metrics = calculateStudentMetrics(student);
+        const trainingLogs = collapseTrainingLogDuplicates(student.trainingLogs);
+        const metrics = calculateStudentMetrics({ ...student, trainingLogs });
         return {
           id: student.id,
           name: student.name,

@@ -1,4 +1,5 @@
 import { handleApiError, noContent, ok, readJson, requireRole } from "@/lib/api";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { defaultSystemSettings, getSystemSettings } from "@/lib/system-settings";
 import { prisma } from "@/lib/prisma";
 import { systemSettingSchema } from "@/lib/validation";
@@ -53,6 +54,12 @@ export async function PATCH(request: Request) {
         entityId: "default"
       }
     });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Pengaturan sistem diperbarui",
+      message: "Admin memperbarui informasi sistem. Silakan cek dashboard untuk melihat perubahan terbaru.",
+      href: "/dashboard"
+    });
 
     return ok(settings);
   } catch (error) {
@@ -79,6 +86,12 @@ export async function DELETE() {
         entity: "SystemSetting",
         entityId: "default"
       }
+    });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Pengaturan sistem direset",
+      message: "Admin mengembalikan pengaturan sistem ke nilai bawaan.",
+      href: "/dashboard"
     });
 
     return noContent();

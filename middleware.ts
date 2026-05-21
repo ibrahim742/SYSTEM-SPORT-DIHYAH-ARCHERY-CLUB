@@ -7,6 +7,7 @@ const muridPrefixes = [
   "/profil",
   "/api/profile",
   "/api/uploads/profile",
+  "/api/notifications",
   "/api/training-logs",
   "/api/students/me",
   "/api/dashboard",
@@ -17,11 +18,11 @@ const rateLimits = new Map<string, { count: number; resetAt: number }>();
 
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;
-  return publicPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+  return publicPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function isMuridPath(pathname: string) {
-  return muridPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+  return muridPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function clientIp(request: NextRequest) {
@@ -69,18 +70,21 @@ function isUnsafeApiRequest(request: NextRequest) {
 }
 
 function withSecurityHeaders(response: NextResponse, request: NextRequest) {
+  const isDevelopment = process.env.NODE_ENV !== "production";
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ""}`,
     "script-src-elem 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     "style-src-elem 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    "connect-src 'self' ws: wss:",
+    `connect-src 'self'${isDevelopment ? " ws: wss:" : ""}`,
     "worker-src 'self' blob:",
+    "object-src 'none'",
     "frame-src 'self' https://www.google.com https://maps.google.com",
     "frame-ancestors 'none'",
+    "manifest-src 'self'",
     "base-uri 'self'",
     "form-action 'self'"
   ].join("; ");
@@ -90,6 +94,8 @@ function withSecurityHeaders(response: NextResponse, request: NextRequest) {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("X-DNS-Prefetch-Control", "off");
 
   const forwardedProto = request.headers.get("x-forwarded-proto");
   if (request.nextUrl.protocol === "https:" || forwardedProto === "https") {

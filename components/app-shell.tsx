@@ -37,7 +37,7 @@ export function AppShell({ children, user, branding }: { children: React.ReactNo
       <MobileSidebar role={user?.role} branding={branding} open={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
       <div className="flex min-h-screen min-w-0 flex-col md:pl-64">
         <Topbar user={user} branding={branding} onMenuClick={() => setMobileMenuOpen(true)} />
-        <main className="min-w-0 flex-1 p-3">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-hidden p-2 sm:p-3">{children}</main>
       </div>
     </div>
   );

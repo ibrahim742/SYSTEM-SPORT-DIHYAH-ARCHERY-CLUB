@@ -1,4 +1,5 @@
 import { ApiError, handleApiError, noContent, ok, readJson, requireSession } from "@/lib/api";
+import { notifyStudents } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { canManageStudent } from "@/lib/rbac";
 import { assignmentSchema } from "@/lib/validation";
@@ -37,6 +38,12 @@ export async function PATCH(request: Request, { params }: Params) {
       },
       include: { student: true, program: true }
     });
+    await notifyStudents(prisma, [existing.studentId, assignment.studentId], {
+      actorId: session.user.id,
+      title: "Program latihan diperbarui",
+      message: `Program "${assignment.program.name}" di akun murid Anda diperbarui.`,
+      href: "/portal/program"
+    });
 
     return ok(assignment);
   } catch (error) {
@@ -55,6 +62,12 @@ export async function DELETE(_: Request, { params }: Params) {
     if (!canManageStudent(session, existing.student.clubId, existing.student.coachId)) throw new ApiError(403, "Akses assign ditolak");
 
     await prisma.programAssignment.update({ where: { id }, data: { status: "DIBATALKAN", deletedAt: new Date() } });
+    await notifyStudents(prisma, [existing.studentId], {
+      actorId: session.user.id,
+      title: "Program latihan dibatalkan",
+      message: "Salah satu program latihan di akun Anda dibatalkan oleh Admin atau Coach.",
+      href: "/portal/program"
+    });
 
     return noContent();
   } catch (error) {

@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { z } from "zod";
 
 import { ApiError, handleApiError, noContent, ok, readJson, requireSession } from "@/lib/api";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { programSchema } from "@/lib/validation";
 
@@ -93,6 +94,14 @@ export async function PATCH(request: Request, { params }: Params) {
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "UPDATE_PROGRAM", entity: "Program", entityId: program.id }
     });
+    if (session.user.role === "ADMIN") {
+      await notifyActiveUsers(prisma, {
+        actorId: session.user.id,
+        title: "Program latihan diperbarui",
+        message: `Admin memperbarui program "${program.name}".`,
+        href: "/dashboard"
+      });
+    }
 
     return ok(program);
   } catch (error) {
@@ -120,6 +129,14 @@ export async function DELETE(_: Request, { params }: Params) {
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "DEACTIVATE_PROGRAM", entity: "Program", entityId: existing.id }
     });
+    if (session.user.role === "ADMIN") {
+      await notifyActiveUsers(prisma, {
+        actorId: session.user.id,
+        title: "Program latihan dinonaktifkan",
+        message: `Admin menonaktifkan program "${existing.name}".`,
+        href: "/dashboard"
+      });
+    }
 
     return noContent();
   } catch (error) {

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { ApiError, handleApiError, noContent, ok, readJson, requireRole, requireSession } from "@/lib/api";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { coachCategorySchema } from "@/lib/validation";
@@ -44,6 +45,12 @@ export async function PATCH(request: Request, { params }: Params) {
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "UPDATE_COACH_CATEGORY", entity: "CoachCategory", entityId: category.id }
     });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Kategori coach diperbarui",
+      message: `Admin memperbarui kategori coach "${category.name}".`,
+      href: "/dashboard"
+    });
 
     return ok(category);
   } catch (error) {
@@ -77,6 +84,12 @@ export async function DELETE(_: Request, { params }: Params) {
         entity: "CoachCategory",
         entityId: existing.id
       }
+    });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Kategori coach dinonaktifkan",
+      message: `Admin menonaktifkan kategori coach "${existing.name}".`,
+      href: "/dashboard"
     });
 
     return noContent();

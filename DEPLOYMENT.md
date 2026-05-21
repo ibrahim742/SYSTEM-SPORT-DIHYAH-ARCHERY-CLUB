@@ -4,8 +4,8 @@
 
 ### Prerequisites
 - ✅ GitHub repo: https://github.com/ibrahim742/SYSTEM-SPORT-DIHYAH-ARCHERY-CLUB
-- ✅ Neon database sudah setup
-- ✅ .env sudah dikonfigurasi di local
+- ✅ MySQL 8 database sudah tersedia
+- ✅ `.env` sudah dikonfigurasi di local
 
 ### Step-by-Step Setup
 
@@ -34,7 +34,7 @@ Gunakan konfigurasi berikut:
 Klik **"Environment variables"** dan tambahkan:
 
 ```
-DATABASE_URL = postgresql://neondb_owner:npg_y6BCi2SfdpGA@ep-young-moon-aqt8uzvg-pooler.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+DATABASE_URL = mysql://user:password@host:3306/altlit
 
 AUTH_SECRET = (generate random string, contoh: abc123xyz789...)
 
@@ -67,8 +67,8 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 - Verifikasi database connection
 
 **Database connection error?**
-- Pastikan Neon database online
-- Test connection string di local: `psql [CONNECTION_STRING]`
+- Pastikan MySQL database online dan user punya akses ke database `altlit`
+- Test connection string di local dengan Prisma: `DATABASE_URL="mysql://user:password@host:3306/altlit" npx prisma validate`
 - Check Cloudflare Pages build logs
 
 **Auth issue?**

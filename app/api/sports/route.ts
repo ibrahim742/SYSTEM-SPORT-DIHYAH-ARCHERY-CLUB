@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { ApiError, created, handleApiError, ok, readJson, requireRole, requireSession } from "@/lib/api";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { sportSchema } from "@/lib/validation";
@@ -40,6 +41,12 @@ export async function POST(request: Request) {
 
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "CREATE_SPORT", entity: "Sport", entityId: sport.id }
+    });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Cabang olahraga baru",
+      message: `Admin menambahkan cabang olahraga "${sport.name}" ke sistem.`,
+      href: "/dashboard"
     });
 
     return created(sport);

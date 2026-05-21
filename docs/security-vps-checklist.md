@@ -17,6 +17,6 @@
 - Use a non-root deploy user and SSH key-only login.
 - Enable `ufw` with only SSH, HTTP, and HTTPS allowed.
 - Enable `fail2ban` for SSH and Nginx.
-- Keep PostgreSQL bound to localhost or a private network only.
+- Keep MySQL bound to localhost or a private network only.
 - Run database backups on a schedule and test restore regularly.
 - Configure log rotation for Nginx and the Node process.

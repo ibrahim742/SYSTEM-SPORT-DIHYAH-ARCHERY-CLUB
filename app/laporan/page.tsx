@@ -4,6 +4,7 @@ import { FilterBar } from "@/components/filter-bar";
 import { ProgressBar } from "@/components/progress-bar";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { collapseTrainingLogDuplicates } from "@/lib/progress-analytics";
 import { scopedStudentWhere } from "@/lib/rbac";
 import { averageStudentMetrics } from "@/lib/student-metrics";
 
@@ -35,7 +36,11 @@ async function getReports() {
     }),
     prisma.programAssignment.count({ where: { status: "SELESAI", deletedAt: null, student: scope } })
   ]);
-  const metrics = averageStudentMetrics(students);
+  const normalizedStudents = students.map((student) => ({
+    ...student,
+    trainingLogs: collapseTrainingLogDuplicates(student.trainingLogs)
+  }));
+  const metrics = averageStudentMetrics(normalizedStudents);
   const activeStudents = students.filter((student) => student.status === "AKTIF").length;
 
   return [

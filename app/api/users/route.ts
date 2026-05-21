@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { ApiError, created, handleApiError, ok, readJson, requireRole } from "@/lib/api";
+import { notifyUsers } from "@/lib/notifications";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { userCreateSchema } from "@/lib/validation";
@@ -96,6 +97,12 @@ export async function POST(request: Request) {
         entity: "User",
         entityId: user.id
       }
+    });
+    await notifyUsers(prisma, [user.id], {
+      actorId: session.user.id,
+      title: "Akun Anda dibuat",
+      message: "Admin membuat akun Anda di sistem. Lengkapi dan cek profil agar data tetap sesuai.",
+      href: "/profil"
     });
 
     return created(user);

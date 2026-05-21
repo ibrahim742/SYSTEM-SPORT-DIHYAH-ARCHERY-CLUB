@@ -1,3 +1,5 @@
+import { ChartBox } from "@/components/chart-box";
+import { ProgressDonutChart, ProgressPerformanceChart } from "@/components/charts";
 import { EmptyState } from "@/components/empty-state";
 import { PaginatedList } from "@/components/paginated-list";
 import { ProgressBar } from "@/components/progress-bar";
@@ -5,6 +7,7 @@ import { SectionBox } from "@/components/section-box";
 import { StudentProfileHeader } from "@/components/student-profile-header";
 import { BadgeStatus } from "@/components/badge-status";
 import { trainingStatusLabel } from "@/lib/labels";
+import { buildTrainingTrendData, formatTrainingLogTimestamp, getTrainingLogDisplayDate } from "@/lib/progress-analytics";
 import { getCurrentStudent } from "@/lib/student-portal";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +15,19 @@ export const dynamic = "force-dynamic";
 export default async function StudentProgressPage() {
   const student = await getCurrentStudent();
   if (!student) return <EmptyState title="Profil murid belum tersedia" description="Hubungi Admin untuk menghubungkan akun dengan data murid." />;
+  const trendData = buildTrainingTrendData(student.trainingLogs);
 
   return (
     <div className="space-y-3">
       <StudentProfileHeader student={student} />
+      <div className="grid gap-3 lg:grid-cols-[1.4fr_0.8fr]">
+        <ChartBox title="Grafik Progress" description="Pilih mingguan, bulanan, atau tahunan untuk membaca tren latihan." className="[&>div:last-child]:h-[360px]">
+          <ProgressPerformanceChart data={trendData} />
+        </ChartBox>
+        <ChartBox title="Ringkasan Visual" description="Dua indikator utama: progress program dan kehadiran latihan." className="[&>div:last-child]:h-[320px]">
+          <ProgressDonutChart progress={student.progress} attendance={student.attendance} />
+        </ChartBox>
+      </div>
       <div className="grid gap-3 md:grid-cols-2">
         <SectionBox title="Progress Saya" description="Ringkasan latihan berjalan">
           <div className="space-y-4">
@@ -38,8 +50,9 @@ export default async function StudentProgressPage() {
         <SectionBox title="Log Progress" description="Riwayat hasil latihan terakhir">
           <PaginatedList className="divide-y">
             {student.trainingLogs.map((log) => (
-              <div key={log.id} className="grid gap-2 py-2 text-xs md:grid-cols-[1fr_100px_70px_90px]">
-                <span className="font-medium">{log.result}</span>
+              <div key={log.id} className="grid gap-2 py-2 text-xs md:grid-cols-[170px_1fr_100px_70px_90px] md:items-center">
+                <span className="font-medium">{formatTrainingLogTimestamp(getTrainingLogDisplayDate(log))}</span>
+                <span>{log.result}</span>
                 <span className="text-muted-foreground">{log.duration}</span>
                 <span>RPE {log.rpe}</span>
                 <BadgeStatus status={trainingStatusLabel(log.status)} />

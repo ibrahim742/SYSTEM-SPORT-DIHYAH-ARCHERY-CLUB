@@ -1,5 +1,6 @@
 import { handleApiError, ok, requireSession } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { collapseTrainingLogDuplicates } from "@/lib/progress-analytics";
 import { scopedStudentWhere } from "@/lib/rbac";
 import { averageStudentMetrics, calculateStudentMetrics } from "@/lib/student-metrics";
 
@@ -47,8 +48,12 @@ export async function GET() {
         }
       })
     ]);
-    const avgProgress = averageStudentMetrics(monitoringStudents).progress;
-    const monitoring = monitoringStudents
+    const normalizedStudents = monitoringStudents.map((student) => ({
+      ...student,
+      trainingLogs: collapseTrainingLogDuplicates(student.trainingLogs)
+    }));
+    const avgProgress = averageStudentMetrics(normalizedStudents).progress;
+    const monitoring = normalizedStudents
       .map((student) => ({
         ...student,
         ...calculateStudentMetrics(student)

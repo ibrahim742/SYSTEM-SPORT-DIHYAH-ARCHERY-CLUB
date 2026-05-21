@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 enum Role {
@@ -66,7 +67,7 @@ model User {
   name          String?
   email         String?    @unique
   emailVerified DateTime?  @map("email_verified")
-  image         String?
+  image         String?    @db.VarChar(512)
   username      String     @unique
   passwordHash  String
   role          Role
@@ -85,6 +86,8 @@ model User {
   createdScores  CoachScore[]  @relation("CoachScores")
   coachedStudents Student[]      @relation("AssignedCoach")
   createdPrograms Program[]      @relation("ProgramCreator")
+  notifications  Notification[] @relation("UserNotifications")
+  sentNotifications Notification[] @relation("NotificationActor")
 
   @@index([role, status])
 }
@@ -160,7 +163,7 @@ model Sport {
   name        String     @unique
   slug        String     @unique
   icon        String?
-  description String?
+  description String?    @db.Text
   status      UserStatus @default(ACTIVE)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -175,7 +178,7 @@ model CoachCategory {
   id          String     @id @default(cuid())
   name        String     @unique
   slug        String     @unique
-  description String?
+  description String?    @db.Text
   status      UserStatus @default(ACTIVE)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -192,11 +195,11 @@ model CoachProfile {
   phone           String    @unique
   gender          Gender
   birthDate       DateTime?
-  address         String?
-  photoUrl        String?
+  address         String?   @db.Text
+  photoUrl        String?   @db.VarChar(512)
   experienceYears Int       @default(0)
-  certification   String?
-  bio             String?
+  certification   String?   @db.Text
+  bio             String?   @db.Text
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
@@ -216,8 +219,8 @@ model SystemSetting {
   systemSubtitle  String   @default("Coach Panel")
   loginSubtitle   String   @default("Masuk untuk monitoring latihan panahan.")
   contactWhatsapp String?
-  logoUrl         String?
-  faviconUrl      String?
+  logoUrl         String?  @db.VarChar(512)
+  faviconUrl      String?  @db.VarChar(512)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -226,12 +229,12 @@ model LandingSection {
   id          String     @id @default(cuid())
   key         String     @unique
   title       String
-  subtitle    String?
-  description String?
+  subtitle    String?    @db.Text
+  description String?    @db.Text
   eyebrow     String?
-  imageUrl    String?
+  imageUrl    String?    @db.VarChar(512)
   ctaLabel    String?
-  ctaHref     String?
+  ctaHref     String?    @db.VarChar(512)
   status      UserStatus @default(ACTIVE)
   sortOrder   Int        @default(0)
   createdAt   DateTime   @default(now())
@@ -247,15 +250,15 @@ model LandingItem {
   id          String     @id @default(cuid())
   sectionKey  String
   title       String
-  subtitle    String?
-  description String?
+  subtitle    String?    @db.Text
+  description String?    @db.Text
   eyebrow     String?
-  imageUrl    String?
+  imageUrl    String?    @db.VarChar(512)
   ctaLabel    String?
-  ctaHref     String?
+  ctaHref     String?    @db.VarChar(512)
   icon        String?
   value       String?
-  href        String?
+  href        String?    @db.VarChar(512)
   sortOrder   Int        @default(0)
   status      UserStatus @default(ACTIVE)
   createdAt   DateTime   @default(now())
@@ -279,8 +282,8 @@ model Student {
   branch     String
   level      Level
   phone      String
-  address    String?
-  photoUrl   String?
+  address    String?       @db.Text
+  photoUrl   String?       @db.VarChar(512)
   status     StudentStatus @default(AKTIF)
   progress   Int           @default(0)
   attendance Int           @default(0)
@@ -314,7 +317,7 @@ model Program {
   duration    String
   materials   Int
   intensity   String
-  description String?
+  description String?    @db.Text
   status      UserStatus @default(ACTIVE)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -333,11 +336,11 @@ model ProgramMaterial {
   id        String   @id @default(cuid())
   programId String
   day       String
-  material  String
+  material  String   @db.Text
   set       String
   reps      String
   duration  String
-  note      String?
+  note      String?  @db.Text
   order     Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -370,7 +373,7 @@ model AttendanceSession {
   id        String    @id @default(cuid())
   date      DateTime
   title     String
-  note      String?
+  note      String?   @db.Text
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -387,7 +390,7 @@ model AttendanceRecord {
   status    AttendanceStatus
   checkIn   String?
   checkOut  String?
-  note      String?
+  note      String?           @db.Text
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -402,12 +405,12 @@ model CoachScore {
   id        String    @id @default(cuid())
   studentId String
   coachId   String?
-  material  String
+  material  String    @db.Text
   technique Int
   focus     Int
   stamina   Int
   grade     String
-  note      String?
+  note      String?   @db.Text
   scoredAt  DateTime  @default(now())
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -424,10 +427,10 @@ model TrainingLog {
   id        String         @id @default(cuid())
   studentId String
   date      DateTime       @default(now())
-  result    String
+  result    String         @db.Text
   duration  String
   rpe       Int
-  note      String?
+  note      String?        @db.Text
   status    TrainingStatus @default(PROSES)
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
@@ -451,4 +454,22 @@ model AuditLog {
 
   @@index([actorId])
   @@index([entity, entityId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  actorId   String?
+  title     String
+  message   String    @db.Text
+  href      String?   @db.VarChar(512)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  user  User  @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt, createdAt])
+  @@index([actorId])
 }

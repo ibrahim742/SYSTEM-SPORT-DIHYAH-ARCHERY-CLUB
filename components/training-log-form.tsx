@@ -27,7 +27,7 @@ export function TrainingLogForm({ studentId }: { studentId?: string }) {
         studentId,
         result: result || (status === "PROSES" ? "Latihan dimulai" : "Latihan selesai"),
         duration: duration || "0 menit",
-        rpe: Number(rpe || 5),
+        rpe: Number(rpe || 100),
         note,
         status
       })
@@ -40,7 +40,7 @@ export function TrainingLogForm({ studentId }: { studentId?: string }) {
       return;
     }
 
-    setMessage(status === "PROSES" ? "Latihan dimulai dan log tersimpan." : "Latihan selesai dan log tersimpan.");
+    setMessage(status === "PROSES" ? "Latihan proses tersimpan atau diperbarui." : "Latihan selesai dan log proses diperbarui.");
     router.refresh();
   }
 
@@ -56,7 +56,7 @@ export function TrainingLogForm({ studentId }: { studentId?: string }) {
       </div>
       <div className="space-y-1">
         <label className="text-xs font-medium">RPE</label>
-        <Input placeholder="1-10" value={rpe} onChange={(event) => setRpe(event.target.value)} />
+        <Input type="number" min={1} max={1000} placeholder="1-1000" value={rpe} onChange={(event) => setRpe(event.target.value)} />
       </div>
       <div className="flex items-end gap-2">
         <Button variant="outline" size="sm" className="flex-1" onClick={() => submit("PROSES")} disabled={saving}>

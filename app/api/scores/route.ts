@@ -1,4 +1,5 @@
 import { ApiError, created, handleApiError, ok, readJson, requireSession } from "@/lib/api";
+import { notifyStudent } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { canManageStudent, scopedStudentWhere } from "@/lib/rbac";
 import { scoreSchema } from "@/lib/validation";
@@ -46,6 +47,12 @@ export async function POST(request: Request) {
         note: payload.note
       },
       include: { student: true, coach: { select: { id: true, name: true, username: true } } }
+    });
+    await notifyStudent(prisma, score.studentId, {
+      actorId: session.user.id,
+      title: "Nilai coach baru",
+      message: `Nilai untuk materi "${score.material}" sudah ditambahkan. Buka menu nilai untuk melihat detailnya.`,
+      href: "/portal/nilai"
     });
 
     return created(score);

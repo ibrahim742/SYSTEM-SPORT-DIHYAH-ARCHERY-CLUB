@@ -1,4 +1,5 @@
 import { ApiError, handleApiError, noContent, ok, readJson, requireSession } from "@/lib/api";
+import { notifyStudent } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { canMutateStudent } from "@/lib/rbac";
 import { trainingLogSchema } from "@/lib/validation";
@@ -28,6 +29,12 @@ export async function PATCH(request: Request, { params }: Params) {
       },
       include: { student: true }
     });
+    await notifyStudent(prisma, log.studentId, {
+      actorId: session.user.id,
+      title: "Log latihan diperbarui",
+      message: `Hasil latihan "${log.result}" sudah diperbarui.`,
+      href: "/portal/log"
+    });
 
     return ok(log);
   } catch (error) {
@@ -46,6 +53,12 @@ export async function DELETE(_: Request, { params }: Params) {
     if (!canMutateStudent(session, existing.student.clubId, existing.student.userId, existing.student.coachId)) throw new ApiError(403, "Akses log ditolak");
 
     await prisma.trainingLog.update({ where: { id }, data: { deletedAt: new Date() } });
+    await notifyStudent(prisma, existing.studentId, {
+      actorId: session.user.id,
+      title: "Log latihan dihapus",
+      message: `Hasil latihan "${existing.result}" dihapus dari riwayat Anda.`,
+      href: "/portal/log"
+    });
 
     return noContent();
   } catch (error) {

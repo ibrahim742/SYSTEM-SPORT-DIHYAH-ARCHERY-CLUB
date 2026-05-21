@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { ApiError, handleApiError, noContent, ok, readJson, requireRole, requireSession } from "@/lib/api";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { sportSchema } from "@/lib/validation";
@@ -45,6 +46,12 @@ export async function PATCH(request: Request, { params }: Params) {
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "UPDATE_SPORT", entity: "Sport", entityId: sport.id }
     });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Cabang olahraga diperbarui",
+      message: `Admin memperbarui cabang olahraga "${sport.name}".`,
+      href: "/dashboard"
+    });
 
     return ok(sport);
   } catch (error) {
@@ -78,6 +85,12 @@ export async function DELETE(_: Request, { params }: Params) {
         entity: "Sport",
         entityId: existing.id
       }
+    });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Cabang olahraga dinonaktifkan",
+      message: `Admin menonaktifkan cabang olahraga "${existing.name}".`,
+      href: "/dashboard"
     });
 
     return noContent();

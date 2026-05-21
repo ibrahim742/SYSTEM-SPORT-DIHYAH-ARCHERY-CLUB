@@ -1,4 +1,5 @@
 import { ApiError, created, handleApiError, ok, readJson, requireSession } from "@/lib/api";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { isAdmin, isCoach } from "@/lib/rbac";
 import { clubSchema } from "@/lib/validation";
@@ -40,6 +41,12 @@ export async function POST(request: Request) {
         entity: "Club",
         entityId: club.id
       }
+    });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Club baru ditambahkan",
+      message: `Admin menambahkan club "${club.name}" ke sistem.`,
+      href: "/dashboard"
     });
 
     return created(club);

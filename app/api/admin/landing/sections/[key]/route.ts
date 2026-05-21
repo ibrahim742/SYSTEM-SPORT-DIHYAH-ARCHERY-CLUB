@@ -1,5 +1,6 @@
 import { ApiError, handleApiError, ok, readJson, requireRole } from "@/lib/api";
 import { ensureLandingSection, landingSectionKeys, type LandingSectionKey } from "@/lib/landing";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { landingSectionSchema } from "@/lib/validation";
 
@@ -68,6 +69,12 @@ export async function PATCH(request: Request, { params }: Params) {
 
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "UPDATE_LANDING_SECTION", entity: "LandingSection", entityId: section.id }
+    });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Informasi sistem diperbarui",
+      message: `Admin memperbarui section "${section.title}" pada halaman sistem.`,
+      href: "/dashboard"
     });
 
     return ok(section);

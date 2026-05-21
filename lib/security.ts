@@ -142,6 +142,6 @@ export async function writeAuditLog(input: {
       }
     });
   } catch (error) {
-    console.error("Gagal menulis audit log", error);
+    console.error("Gagal menulis audit log", error instanceof Error ? { name: error.name } : { name: "unknown" });
   }
 }

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { ApiError, created, handleApiError, ok, readJson, requireRole, requireSession } from "@/lib/api";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { coachCategorySchema } from "@/lib/validation";
@@ -35,6 +36,12 @@ export async function POST(request: Request) {
 
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "CREATE_COACH_CATEGORY", entity: "CoachCategory", entityId: category.id }
+    });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Kategori coach baru",
+      message: `Admin menambahkan kategori coach "${category.name}" ke sistem.`,
+      href: "/dashboard"
     });
 
     return created(category);

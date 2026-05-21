@@ -1,5 +1,7 @@
 import { ApiError, handleApiError, noContent, ok, readJson, requireSession } from "@/lib/api";
+import { notifyStudent } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
+import { collapseTrainingLogDuplicates } from "@/lib/progress-analytics";
 import { canMutateStudent, isAdmin, scopedStudentWhere } from "@/lib/rbac";
 import { studentUpdateSchema } from "@/lib/validation";
 
@@ -35,7 +37,7 @@ export async function GET(_: Request, { params }: Params) {
     });
     if (!student) throw new ApiError(404, "Murid tidak ditemukan");
 
-    return ok(student);
+    return ok({ ...student, trainingLogs: collapseTrainingLogDuplicates(student.trainingLogs) });
   } catch (error) {
     return handleApiError(error);
   }
@@ -90,6 +92,14 @@ export async function PATCH(request: Request, { params }: Params) {
       data,
       include: { club: true, sport: true, coach: { select: { id: true, name: true, username: true } } }
     });
+    if (session.user.role !== "MURID") {
+      await notifyStudent(prisma, student.id, {
+        actorId: session.user.id,
+        title: "Data murid diperbarui",
+        message: `${session.user.role === "ADMIN" ? "Admin" : "Coach"} memperbarui data profil murid Anda.`,
+        href: "/portal"
+      });
+    }
 
     return ok(student);
   } catch (error) {

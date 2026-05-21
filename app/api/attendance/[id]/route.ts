@@ -1,4 +1,5 @@
 import { ApiError, handleApiError, noContent, ok, readJson, requireSession } from "@/lib/api";
+import { notifyStudents } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { canManageStudent, scopedStudentWhere } from "@/lib/rbac";
 import { attendanceSessionSchema } from "@/lib/validation";
@@ -81,6 +82,16 @@ export async function PATCH(request: Request, { params }: Params) {
         include: { records: { include: { student: true } } }
       });
     });
+    await notifyStudents(
+      prisma,
+      attendance.records.map((record) => record.studentId),
+      {
+        actorId: session.user.id,
+        title: "Absensi diperbarui",
+        message: `Absensi "${attendance.title}" sudah diperbarui. Buka menu absensi untuk melihat status terbaru.`,
+        href: "/portal/absensi"
+      }
+    );
 
     return ok(attendance);
   } catch (error) {
@@ -107,6 +118,17 @@ export async function DELETE(_: Request, { params }: Params) {
     if (!existing) throw new ApiError(404, "Absensi tidak ditemukan");
 
     await prisma.attendanceSession.update({ where: { id }, data: { deletedAt: new Date() } });
+    const records = await prisma.attendanceRecord.findMany({ where: { sessionId: id }, select: { studentId: true } });
+    await notifyStudents(
+      prisma,
+      records.map((record) => record.studentId),
+      {
+        actorId: session.user.id,
+        title: "Absensi dihapus",
+        message: "Salah satu catatan absensi dihapus oleh Admin atau Coach.",
+        href: "/portal/absensi"
+      }
+    );
 
     return noContent();
   } catch (error) {

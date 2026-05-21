@@ -1,4 +1,5 @@
 import { ApiError, handleApiError, noContent, ok, readJson, requireSession } from "@/lib/api";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { isAdmin, isCoach } from "@/lib/rbac";
 import { clubSchema } from "@/lib/validation";
@@ -40,6 +41,12 @@ export async function PATCH(request: Request, { params }: Params) {
         entityId: club.id
       }
     });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Club diperbarui",
+      message: `Admin memperbarui data club "${club.name}".`,
+      href: "/dashboard"
+    });
 
     return ok(club);
   } catch (error) {
@@ -56,6 +63,12 @@ export async function DELETE(_: Request, { params }: Params) {
     await prisma.club.update({
       where: { id },
       data: { status: "INACTIVE", deletedAt: new Date() }
+    });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Club dinonaktifkan",
+      message: "Admin menonaktifkan salah satu club di sistem.",
+      href: "/dashboard"
     });
 
     return noContent();

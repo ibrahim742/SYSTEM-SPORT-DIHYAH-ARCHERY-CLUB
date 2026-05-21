@@ -263,7 +263,14 @@ export const trainingLogSchema = z.object({
   date: dateStringSchema.optional(),
   result: noHtmlText.min(1).max(200),
   duration: noHtmlText.min(1).max(40),
-  rpe: z.coerce.number().int().min(1).max(10),
+  rpe: z.coerce.number().int().min(1).max(1000),
   note: nullableTextSchema,
   status: z.enum(["SELESAI", "PROSES", "BELUM"]).optional()
 });
+
+export const notificationReadSchema = z
+  .object({
+    all: z.boolean().optional(),
+    ids: z.array(idSchema).max(100).optional()
+  })
+  .refine((payload) => payload.all || Boolean(payload.ids?.length), "Pilih notifikasi yang akan ditandai terbaca");

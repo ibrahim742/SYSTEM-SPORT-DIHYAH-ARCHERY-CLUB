@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { ApiError, handleApiError, noContent, ok, readJson, requireRole } from "@/lib/api";
+import { notifyUsers } from "@/lib/notifications";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { userUpdateSchema } from "@/lib/validation";
@@ -118,6 +119,12 @@ export async function PATCH(request: Request, { params }: Params) {
         entity: "User",
         entityId: user.id
       }
+    });
+    await notifyUsers(prisma, [user.id], {
+      actorId: session.user.id,
+      title: "Akun Anda diperbarui",
+      message: "Admin memperbarui informasi akun Anda. Cek profil untuk memastikan data sudah benar.",
+      href: "/profil"
     });
 
     return ok(user);

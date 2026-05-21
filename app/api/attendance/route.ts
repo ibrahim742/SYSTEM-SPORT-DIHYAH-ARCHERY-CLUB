@@ -1,4 +1,5 @@
 import { ApiError, created, handleApiError, ok, readJson, requireSession } from "@/lib/api";
+import { notifyStudents } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { canManageStudent, scopedStudentWhere } from "@/lib/rbac";
 import { attendanceSessionSchema } from "@/lib/validation";
@@ -103,6 +104,16 @@ export async function POST(request: Request) {
       },
       include: { records: { include: { student: true } } }
     });
+    await notifyStudents(
+      prisma,
+      attendance.records.map((record) => record.studentId),
+      {
+        actorId: session.user.id,
+        title: "Absensi diperbarui",
+        message: `Absensi "${attendance.title}" sudah dicatat. Buka menu absensi untuk melihat status hadir Anda.`,
+        href: "/portal/absensi"
+      }
+    );
 
     return created(attendance);
   } catch (error) {

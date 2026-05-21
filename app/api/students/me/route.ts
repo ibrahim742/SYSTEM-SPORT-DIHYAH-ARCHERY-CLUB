@@ -1,5 +1,6 @@
 import { ApiError, handleApiError, ok, readJson, requireSession } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { collapseTrainingLogDuplicates } from "@/lib/progress-analytics";
 import { studentUpdateSchema } from "@/lib/validation";
 
 export async function GET() {
@@ -13,7 +14,7 @@ export async function GET() {
     });
     if (!student) throw new ApiError(404, "Profil murid tidak ditemukan");
 
-    return ok(student);
+    return ok({ ...student, trainingLogs: collapseTrainingLogDuplicates(student.trainingLogs) });
   } catch (error) {
     return handleApiError(error);
   }

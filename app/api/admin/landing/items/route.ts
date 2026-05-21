@@ -1,5 +1,6 @@
 import { handleApiError, created, readJson, requireRole } from "@/lib/api";
 import { ensureLandingSection } from "@/lib/landing";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { landingItemSchema } from "@/lib/validation";
 
@@ -28,6 +29,12 @@ export async function POST(request: Request) {
 
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "CREATE_LANDING_ITEM", entity: "LandingItem", entityId: item.id }
+    });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Informasi sistem ditambahkan",
+      message: `Admin menambahkan informasi "${item.title}" pada halaman sistem.`,
+      href: "/dashboard"
     });
 
     return created(item);

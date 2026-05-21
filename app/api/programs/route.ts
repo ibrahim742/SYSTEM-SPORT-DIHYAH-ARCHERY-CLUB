@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import type { z } from "zod";
 
 import { ApiError, created, handleApiError, ok, readJson, requireSession } from "@/lib/api";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { programSchema } from "@/lib/validation";
 
@@ -82,6 +83,14 @@ export async function POST(request: Request) {
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "CREATE_PROGRAM", entity: "Program", entityId: program.id }
     });
+    if (session.user.role === "ADMIN") {
+      await notifyActiveUsers(prisma, {
+        actorId: session.user.id,
+        title: "Program latihan baru",
+        message: `Admin menambahkan program "${program.name}" ke sistem.`,
+        href: "/dashboard"
+      });
+    }
 
     return created(program);
   } catch (error) {

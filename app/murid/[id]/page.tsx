@@ -1,14 +1,24 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+import { BadgeStatus } from "@/components/badge-status";
+import { ChartBox } from "@/components/chart-box";
+import { ProgressDonutChart, ProgressPerformanceChart } from "@/components/charts";
+import { PaginatedList } from "@/components/paginated-list";
 import { ProgressBar } from "@/components/progress-bar";
 import { SectionBox } from "@/components/section-box";
 import { TrainingLogForm } from "@/components/training-log-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
-import { levelLabel, studentStatusLabel } from "@/lib/labels";
+import { levelLabel, studentStatusLabel, trainingStatusLabel } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import {
+  buildTrainingTrendData,
+  collapseTrainingLogDuplicates,
+  formatTrainingLogTimestamp,
+  getTrainingLogDisplayDate
+} from "@/lib/progress-analytics";
 import { scopedStudentWhere } from "@/lib/rbac";
 import { calculateStudentMetrics } from "@/lib/student-metrics";
 
@@ -57,7 +67,13 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   }
 
   const todayTraining = student.assignments[0]?.program.details.map((detail) => detail.material) ?? [];
-  const metrics = calculateStudentMetrics(student);
+  const trainingLogs = collapseTrainingLogDuplicates(student.trainingLogs);
+  const metrics = calculateStudentMetrics({ ...student, trainingLogs });
+  const trendData = buildTrainingTrendData(trainingLogs);
+  const averageRpe =
+    trainingLogs.length > 0
+      ? Math.round((trainingLogs.reduce((total, log) => total + log.rpe, 0) / trainingLogs.length) * 10) / 10
+      : 0;
 
   return (
     <div className="space-y-3">
@@ -148,11 +164,11 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
             <div className="grid grid-cols-2 divide-x border-y text-xs">
               <div className="px-2 py-2">
                 <p className="text-muted-foreground">Sesi</p>
-                <p className="mt-1 text-lg font-semibold leading-none">18</p>
+                <p className="mt-1 text-lg font-semibold leading-none">{trainingLogs.length}</p>
               </div>
               <div className="px-2 py-2">
                 <p className="text-muted-foreground">Rata-rata RPE</p>
-                <p className="mt-1 text-lg font-semibold leading-none">6.8</p>
+                <p className="mt-1 text-lg font-semibold leading-none">{averageRpe}</p>
               </div>
             </div>
           </div>
@@ -164,6 +180,29 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           <TrainingLogForm studentId={student.id} />
         </SectionBox>
       ) : null}
+
+      <div className="grid gap-3 lg:grid-cols-[1.4fr_0.8fr]">
+        <ChartBox title="Grafik Progress" description="Pilih mingguan, bulanan, atau tahunan untuk membaca tren latihan." className="[&>div:last-child]:h-[360px]">
+          <ProgressPerformanceChart data={trendData} />
+        </ChartBox>
+        <ChartBox title="Ringkasan Visual" description="Dua indikator utama: progress program dan kehadiran latihan." className="[&>div:last-child]:h-[320px]">
+          <ProgressDonutChart progress={metrics.progress} attendance={metrics.attendance} />
+        </ChartBox>
+      </div>
+
+      <SectionBox title="Riwayat Progress" description="Hari, tanggal, dan jam hasil latihan sampai menit.">
+        <PaginatedList className="divide-y">
+          {trainingLogs.map((log) => (
+            <div key={log.id} className="grid gap-2 py-2 text-xs md:grid-cols-[170px_1fr_100px_70px_90px] md:items-center">
+              <span className="font-medium">{formatTrainingLogTimestamp(getTrainingLogDisplayDate(log))}</span>
+              <span>{log.result}</span>
+              <span className="text-muted-foreground">{log.duration}</span>
+              <span>RPE {log.rpe}</span>
+              <BadgeStatus status={trainingStatusLabel(log.status)} />
+            </div>
+          ))}
+        </PaginatedList>
+      </SectionBox>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { ApiError, handleApiError, noContent, ok, readJson, requireSession } from "@/lib/api";
+import { notifyStudents } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { canManageStudent } from "@/lib/rbac";
 import { scoreSchema } from "@/lib/validation";
@@ -22,6 +23,12 @@ export async function PATCH(request: Request, { params }: Params) {
       if (!canManageStudent(session, student.clubId, student.coachId)) throw new ApiError(403, "Akses murid ditolak");
     }
     const score = await prisma.coachScore.update({ where: { id }, data: payload, include: { student: true } });
+    await notifyStudents(prisma, [existing.studentId, score.studentId], {
+      actorId: session.user.id,
+      title: "Nilai coach diperbarui",
+      message: `Nilai materi "${score.material}" sudah diperbarui.`,
+      href: "/portal/nilai"
+    });
 
     return ok(score);
   } catch (error) {
@@ -40,6 +47,12 @@ export async function DELETE(_: Request, { params }: Params) {
     if (!canManageStudent(session, existing.student.clubId, existing.student.coachId)) throw new ApiError(403, "Akses nilai ditolak");
 
     await prisma.coachScore.update({ where: { id }, data: { deletedAt: new Date() } });
+    await notifyStudents(prisma, [existing.studentId], {
+      actorId: session.user.id,
+      title: "Nilai coach dihapus",
+      message: `Nilai materi "${existing.material}" dihapus dari akun Anda.`,
+      href: "/portal/nilai"
+    });
 
     return noContent();
   } catch (error) {

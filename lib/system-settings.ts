@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isDatabaseUnavailable } from "@/lib/dev-auth";
 
 export type SystemSettings = {
   systemName: string;
@@ -19,17 +20,22 @@ export const defaultSystemSettings: SystemSettings = {
 };
 
 export async function getSystemSettings(): Promise<SystemSettings> {
-  const settings = await prisma.systemSetting.findUnique({
-    where: { key: "default" },
-    select: {
-      systemName: true,
-      systemSubtitle: true,
-      loginSubtitle: true,
-      contactWhatsapp: true,
-      logoUrl: true,
-      faviconUrl: true
-    }
-  });
+  const settings = await prisma.systemSetting
+    .findUnique({
+      where: { key: "default" },
+      select: {
+        systemName: true,
+        systemSubtitle: true,
+        loginSubtitle: true,
+        contactWhatsapp: true,
+        logoUrl: true,
+        faviconUrl: true
+      }
+    })
+    .catch((error) => {
+      if (isDatabaseUnavailable(error)) return null;
+      throw error;
+    });
 
   return settings ?? defaultSystemSettings;
 }

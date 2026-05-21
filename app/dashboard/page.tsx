@@ -12,6 +12,7 @@ import { monitoringRows, students as dummyStudents } from "@/lib/data";
 import { isDatabaseUnavailable } from "@/lib/dev-auth";
 import { levelLabel, trainingStatusLabel } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import { buildStudentProgressLineData, collapseTrainingLogDuplicates } from "@/lib/progress-analytics";
 import { scopedStudentWhere } from "@/lib/rbac";
 import { averageStudentMetrics, calculateStudentMetrics } from "@/lib/student-metrics";
 import { levelTone, softPill } from "@/lib/ui-styles";
@@ -72,8 +73,12 @@ async function getDashboardRows() {
         }
       })
     ]);
-    const avg = averageStudentMetrics(monitoringStudents);
-    const monitoring = monitoringStudents
+    const normalizedStudents = monitoringStudents.map((student) => ({
+      ...student,
+      trainingLogs: collapseTrainingLogDuplicates(student.trainingLogs)
+    }));
+    const avg = averageStudentMetrics(normalizedStudents);
+    const monitoring = normalizedStudents
       .map((student) => ({
         ...student,
         ...calculateStudentMetrics(student)
@@ -174,6 +179,7 @@ const columns: Column<MonitoringRow>[] = [
 export default async function DashboardPage() {
   const dashboard = await getDashboardRows();
   const stats = makeStats(dashboard.total, dashboard.hadir, dashboard.tidakHadir, dashboard.avgProgress);
+  const progressChartData = buildStudentProgressLineData(dashboard.monitoring);
 
   return (
     <div className="space-y-3">
@@ -196,8 +202,8 @@ export default async function DashboardPage() {
         })}
       </div>
 
-      <ChartBox title="Progress Mingguan" description="Rata-rata progress dan kehadiran atlet">
-        <WeeklyProgressChart />
+      <ChartBox title="Progress Murid" description="Garis progress dan kehadiran dari data murid terbaru.">
+        <WeeklyProgressChart data={progressChartData} />
       </ChartBox>
 
       <section className="overflow-hidden rounded-md border bg-background shadow-sm shadow-slate-200/60">

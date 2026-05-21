@@ -1,4 +1,5 @@
 import { ApiError, created, handleApiError, ok, readJson, requireSession } from "@/lib/api";
+import { notifyStudent } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { canManageStudent, scopedStudentWhere } from "@/lib/rbac";
 import { assignmentSchema } from "@/lib/validation";
@@ -45,6 +46,12 @@ export async function POST(request: Request) {
         startedAt: new Date()
       },
       include: { student: true, program: true }
+    });
+    await notifyStudent(prisma, assignment.studentId, {
+      actorId: session.user.id,
+      title: "Program latihan baru",
+      message: `Program "${assignment.program.name}" diberikan ke akun Anda. Buka menu program untuk melihat detailnya.`,
+      href: "/portal/program"
     });
 
     return created(assignment);

@@ -1,12 +1,13 @@
 import { BadgeStatus } from "@/components/badge-status";
 import { ChartBox } from "@/components/chart-box";
-import { MonitoringMiniChart } from "@/components/charts";
+import { ProgressPerformanceChart } from "@/components/charts";
 import { DataTable, type Column } from "@/components/data-table";
 import { FilterBar } from "@/components/filter-bar";
 import { ProgressBar } from "@/components/progress-bar";
 import { auth } from "@/lib/auth";
 import { trainingStatusLabel } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import { buildTrainingTrendData, collapseTrainingLogDuplicates, formatTrainingLogTimestamp, getTrainingLogDisplayDate } from "@/lib/progress-analytics";
 import { scopedStudentWhere } from "@/lib/rbac";
 import { calculateStudentMetrics } from "@/lib/student-metrics";
 
@@ -43,17 +44,23 @@ async function getProgressRows() {
     orderBy: { date: "desc" }
   });
 
-  return rows.map((row) => ({
-    ...row,
-    student: {
-      ...row.student,
-      ...calculateStudentMetrics(row.student)
-    }
-  }));
+  return collapseTrainingLogDuplicates(rows).map((row) => {
+    const trainingLogs = collapseTrainingLogDuplicates(row.student.trainingLogs);
+
+    return {
+      ...row,
+      student: {
+        ...row.student,
+        trainingLogs,
+        ...calculateStudentMetrics({ ...row.student, trainingLogs })
+      }
+    };
+  });
 }
 
 const columns: Column<ProgressRow>[] = [
   { key: "student", header: "Murid", cell: (row) => <span className="font-medium">{row.student.name}</span> },
+  { key: "date", header: "Hari/Tanggal", cell: (row) => formatTrainingLogTimestamp(getTrainingLogDisplayDate(row)) },
   { key: "material", header: "Materi", cell: (row) => row.note ?? "Latihan mandiri" },
   { key: "target", header: "Target", cell: () => "Sesuai program" },
   { key: "actual", header: "Aktual", cell: (row) => row.result },
@@ -64,11 +71,12 @@ const columns: Column<ProgressRow>[] = [
 
 export default async function MonitoringPage() {
   const progressRows = await getProgressRows();
+  const trendData = buildTrainingTrendData(progressRows, 10);
 
   return (
     <div className="space-y-3">
-      <ChartBox title="Trend Progress" description="Ringkasan progres latihan enam minggu terakhir" className="[&>div:last-child]:h-[170px]">
-        <MonitoringMiniChart />
+      <ChartBox title="Grafik Hasil Latihan" description="Pilih mingguan, bulanan, atau tahunan untuk membaca tren latihan." className="[&>div:last-child]:h-[360px]">
+        <ProgressPerformanceChart data={trendData} />
       </ChartBox>
       <section className="rounded-md border bg-background">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">

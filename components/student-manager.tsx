@@ -53,6 +53,11 @@ type FormState = {
 function usernameFromName(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, ".").replace(/(^\.|\.$)/g, "");
 }
+
+function coachLabel(coach: CoachOption) {
+  return coach.name?.trim() || coach.username;
+}
+
 const PAGE_SIZE = 5;
 
 export function StudentManager({ students, clubs, sports, coaches, canCreate }: { students: StudentRow[]; clubs: ClubOption[]; sports: SportOption[]; coaches: CoachOption[]; canCreate: boolean }) {
@@ -72,6 +77,16 @@ export function StudentManager({ students, clubs, sports, coaches, canCreate }: 
   const visibleStudents = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page]);
   const firstVisibleRow = filtered.length ? (page - 1) * PAGE_SIZE + 1 : 0;
   const lastVisibleRow = Math.min(page * PAGE_SIZE, filtered.length);
+  const formClubId = form?.clubId ?? "";
+  const formSportId = form?.sportId ?? "";
+  const formCoachId = form?.coachId ?? "";
+  const selectableCoaches = useMemo(
+    () => (form ? coaches.filter((coach) => coach.sportId === formSportId && coach.clubIds.includes(formClubId)) : []),
+    [coaches, form, formClubId, formSportId]
+  );
+  const currentCoach = useMemo(() => (formCoachId ? coaches.find((coach) => coach.id === formCoachId) : undefined), [coaches, formCoachId]);
+  const currentCoachIsSelectable = Boolean(currentCoach && selectableCoaches.some((coach) => coach.id === currentCoach.id));
+  const coachOptions = currentCoach && !currentCoachIsSelectable ? [currentCoach, ...selectableCoaches] : selectableCoaches;
 
   useEffect(() => {
     setPage(1);
@@ -316,14 +331,16 @@ export function StudentManager({ students, clubs, sports, coaches, canCreate }: 
                 Coach
                 <select className="h-8 w-full rounded-md border bg-white px-2 text-xs" value={form.coachId} onChange={(event) => setForm({ ...form, coachId: event.target.value })}>
                   <option value="">Belum dipilih</option>
-                  {coaches
-                    .filter((coach) => coach.sportId === form.sportId && coach.clubIds.includes(form.clubId))
-                    .map((coach) => (
-                      <option key={coach.id} value={coach.id}>
-                        {coach.name || coach.username}
-                      </option>
-                    ))}
+                  {coachOptions.map((coach) => (
+                    <option key={coach.id} value={coach.id}>
+                      {coachLabel(coach)}
+                      {currentCoach && coach.id === currentCoach.id && !currentCoachIsSelectable ? " (coach saat ini)" : ""}
+                    </option>
+                  ))}
                 </select>
+                {form.coachId && currentCoach && !currentCoachIsSelectable ? (
+                  <p className="text-[11px] leading-4 text-amber-700">Coach saat ini tidak cocok dengan club atau cabang olahraga yang dipilih.</p>
+                ) : null}
               </label>
               <label className="space-y-1 text-xs font-medium">
                 Disiplin

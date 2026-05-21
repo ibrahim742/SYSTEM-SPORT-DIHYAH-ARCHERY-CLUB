@@ -1,5 +1,6 @@
 import { ApiError, handleApiError, noContent, ok, readJson, requireRole } from "@/lib/api";
 import { ensureLandingSection } from "@/lib/landing";
+import { notifyActiveUsers } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { landingItemSchema } from "@/lib/validation";
 
@@ -36,6 +37,12 @@ export async function PATCH(request: Request, { params }: Params) {
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "UPDATE_LANDING_ITEM", entity: "LandingItem", entityId: item.id }
     });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Informasi sistem diperbarui",
+      message: `Admin memperbarui informasi "${item.title}" pada halaman sistem.`,
+      href: "/dashboard"
+    });
 
     return ok(item);
   } catch (error) {
@@ -60,6 +67,12 @@ export async function DELETE(_: Request, { params }: Params) {
 
     await prisma.auditLog.create({
       data: { actorId: session.user.id, action: "DELETE_LANDING_ITEM", entity: "LandingItem", entityId: id }
+    });
+    await notifyActiveUsers(prisma, {
+      actorId: session.user.id,
+      title: "Informasi sistem dihapus",
+      message: `Admin menghapus informasi "${existing.title}" dari halaman sistem.`,
+      href: "/dashboard"
     });
 
     return noContent();

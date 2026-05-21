@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { collapseTrainingLogDuplicates } from "@/lib/progress-analytics";
 import { calculateStudentMetrics } from "@/lib/student-metrics";
 
 export async function getCurrentStudent() {
@@ -40,5 +41,10 @@ export async function getCurrentStudent() {
     }
   });
 
-  return student ? { ...student, ...calculateStudentMetrics(student) } : null;
+  if (!student) return null;
+
+  const trainingLogs = collapseTrainingLogDuplicates(student.trainingLogs);
+  const normalizedStudent = { ...student, trainingLogs };
+
+  return { ...normalizedStudent, ...calculateStudentMetrics(normalizedStudent) };
 }

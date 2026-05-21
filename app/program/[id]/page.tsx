@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 import { DataTable, type Column } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { auth } from "@/lib/auth";
 import { levelLabel } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 
@@ -12,13 +14,32 @@ export const dynamic = "force-dynamic";
 type ProgramDetail = Awaited<ReturnType<typeof getProgram>>["details"][number];
 
 async function getProgram(id: string) {
+  const session = await auth();
+  if (!session?.user) {
+    notFound();
+  }
+
+  const studentProfile =
+    session.user.role === "MURID"
+      ? await prisma.student.findFirst({ where: { userId: session.user.id, deletedAt: null }, select: { sportId: true } })
+      : null;
+  const coachProfile =
+    session.user.role === "COACH"
+      ? await prisma.coachProfile.findUnique({ where: { userId: session.user.id }, select: { sportId: true } })
+      : null;
+  const sportScope = studentProfile?.sportId ?? coachProfile?.sportId;
   const program = await prisma.program.findFirst({
-    where: { OR: [{ id }, { slug: id }], deletedAt: null, status: "ACTIVE" },
+    where: {
+      OR: [{ id }, { slug: id }],
+      deletedAt: null,
+      ...(session.user.role === "ADMIN" ? {} : { status: "ACTIVE" as const }),
+      ...(sportScope ? { sportId: sportScope } : {})
+    },
     include: { sport: true, details: { orderBy: { order: "asc" } } }
   });
 
   if (!program) {
-    throw new Error("Program tidak ditemukan");
+    notFound();
   }
 
   return program;

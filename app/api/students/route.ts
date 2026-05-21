@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { ApiError, created, handleApiError, ok, readJson, requireSession } from "@/lib/api";
+import { notifyUsers } from "@/lib/notifications";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { canCreateAccount, isAdmin, scopedStudentWhere } from "@/lib/rbac";
@@ -109,6 +110,12 @@ export async function POST(request: Request) {
         entity: "Student",
         entityId: student.id
       }
+    });
+    await notifyUsers(prisma, [student.user?.id], {
+      actorId: session.user.id,
+      title: "Akun murid dibuat",
+      message: "Akun murid Anda sudah aktif. Program, absensi, nilai, dan log latihan akan muncul di portal.",
+      href: "/portal"
     });
 
     return created(student);

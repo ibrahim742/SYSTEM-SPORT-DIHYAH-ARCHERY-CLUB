@@ -56,7 +56,7 @@ export function handleApiError(error: unknown) {
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    console.error(error);
+    console.error("Prisma request error", { code: error.code });
 
     if (error.code === "P2002") {
       return NextResponse.json({ error: "Data unik sudah dipakai. Periksa email, username, atau nomor WhatsApp." }, { status: 409 });
@@ -72,8 +72,13 @@ export function handleApiError(error: unknown) {
   }
 
   if (error instanceof Prisma.PrismaClientValidationError) {
-    console.error(error);
+    console.error("Prisma validation error");
     return NextResponse.json({ error: "Data tidak lengkap atau formatnya tidak sesuai untuk disimpan." }, { status: 422 });
+  }
+
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    console.error("Prisma initialization error", { errorCode: error.errorCode });
+    return NextResponse.json({ error: "Koneksi database sedang tidak tersedia." }, { status: 503 });
   }
 
   console.error(error);
@@ -124,6 +129,13 @@ export function assertBodySize(request: Request, maxBytes = 1024 * 1024) {
   }
 }
 
+export function assertJsonContentType(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().includes("application/json")) {
+    throw new ApiError(415, "Content-Type wajib application/json");
+  }
+}
+
 export function assertApiRateLimit(request: Request, bucket: string, limit = 120, windowMs = 60 * 1000) {
   const ip = getClientIp(request);
   const result = checkRateLimit(`api:${bucket}:${ip}`, limit, windowMs);
@@ -134,6 +146,7 @@ export function assertApiRateLimit(request: Request, bucket: string, limit = 120
 
 export async function readJson<T>(request: Request, schema: z.ZodType<T>) {
   assertSameOrigin(request);
+  assertJsonContentType(request);
   assertBodySize(request);
   assertApiRateLimit(request, new URL(request.url).pathname);
 
