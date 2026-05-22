@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Save, SlidersHorizontal } from "lucide-react
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { levelAccent, levelTone, softPill } from "@/lib/ui-styles";
@@ -18,6 +19,12 @@ type ScoreRow = {
   branch: string;
   levelLabel: string;
   material: string;
+  materialOptions: {
+    id: string;
+    label: string;
+    meta: string;
+  }[];
+  programName: string | null;
   technique: number;
   focus: number;
   stamina: number;
@@ -35,6 +42,10 @@ function formatScoreHistory(value: string | null) {
     date: new Intl.DateTimeFormat("id-ID", { day: "2-digit", month: "short", year: "numeric" }).format(date),
     time: new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit" }).format(date)
   };
+}
+
+function materialSelectValue(row: ScoreRow) {
+  return row.materialOptions.find((option) => option.label === row.material)?.id ?? "";
 }
 
 export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: ScoreRow[]; selectedDate: string }) {
@@ -69,6 +80,12 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
   }
 
   async function saveScores() {
+    const rowsWithoutMaterials = rows.filter((row) => row.materialOptions.length === 0);
+    if (rowsWithoutMaterials.length > 0) {
+      setMessage(`${rowsWithoutMaterials.length} murid belum punya materi dari Program Latihan aktif.`);
+      return;
+    }
+
     setSaving(true);
     setMessage("");
     const responses = await Promise.all(
@@ -79,6 +96,7 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
           body: JSON.stringify({
             studentId: row.studentId,
             material: row.material,
+            scoredDate: date,
             technique: row.technique,
             focus: row.focus,
             stamina: row.stamina,
@@ -153,7 +171,31 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
               </TableCell>
               <TableCell className="h-16">{row.clubName}</TableCell>
               <TableCell className="h-16">
-                <Input className="bg-slate-50/70 focus-visible:bg-white" value={row.material} onChange={(event) => update(rowIndex, { material: event.target.value })} />
+                <div className="min-w-[220px] space-y-1">
+                  <Select
+                    value={materialSelectValue(row)}
+                    onValueChange={(value) => {
+                      const selectedMaterial = row.materialOptions.find((option) => option.id === value);
+                      if (selectedMaterial) update(rowIndex, { material: selectedMaterial.label });
+                    }}
+                    disabled={row.materialOptions.length === 0}
+                  >
+                    <SelectTrigger className="bg-slate-50/70 focus:bg-white">
+                      <SelectValue placeholder="Pilih materi program" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {row.materialOptions.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          <span className="flex flex-col gap-0.5">
+                            <span>{option.label}</span>
+                            {option.meta ? <span className="text-[11px] text-muted-foreground">{option.meta}</span> : null}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="truncate text-[11px] text-muted-foreground">Program: {row.programName ?? "-"}</p>
+                </div>
               </TableCell>
               <TableCell className="h-16">
                 <Input className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.technique} inputMode="numeric" onChange={(event) => update(rowIndex, { technique: Number(event.target.value) })} />

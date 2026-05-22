@@ -256,6 +256,7 @@ export const attendanceSessionSchema = z.object({
 export const scoreSchema = z.object({
   studentId: idSchema,
   material: requiredTextSchema.max(120),
+  scoredDate: dateStringSchema.optional(),
   technique: z.coerce.number().int().min(0).max(100),
   focus: z.coerce.number().int().min(0).max(100),
   stamina: z.coerce.number().int().min(0).max(100),

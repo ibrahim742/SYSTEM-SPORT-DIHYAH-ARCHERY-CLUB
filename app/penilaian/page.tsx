@@ -72,7 +72,20 @@ export default async function CoachScoringPage({ searchParams }: PageProps) {
           student: {
             include: {
               club: true,
-              scores: { where: { deletedAt: null }, orderBy: { scoredAt: "desc" }, take: 1 }
+              assignments: {
+                where: { deletedAt: null },
+                include: {
+                  program: {
+                    include: {
+                      details: {
+                        orderBy: { order: "asc" }
+                      }
+                    }
+                  }
+                },
+                orderBy: { assignedAt: "desc" }
+              },
+              scores: { where: { deletedAt: null, scoredAt: { gte: range.start, lt: range.end } }, orderBy: { scoredAt: "desc" }, take: 1 }
             }
           }
         }
@@ -86,13 +99,24 @@ export default async function CoachScoringPage({ searchParams }: PageProps) {
       selectedDate={selectedDate}
       rows={records.map((record) => {
         const latestScore = record.student.scores[0];
+        const activeAssignment = record.student.assignments.find((assignment) => assignment.status === "AKTIF") ?? record.student.assignments[0] ?? null;
+        const materialOptions = activeAssignment?.program.details.map((detail) => ({
+          id: detail.id,
+          label: detail.material,
+          meta: [detail.day, detail.set, detail.reps, detail.duration].filter(Boolean).join(" · ")
+        })) ?? [];
+        const fallbackMaterial = materialOptions[0]?.label ?? "Belum ada materi program";
+        const savedMaterialIsAvailable = latestScore ? materialOptions.some((option) => option.label === latestScore.material) : false;
+
         return {
           studentId: record.student.id,
           name: record.student.name,
           clubName: record.student.club.name,
           branch: record.student.branch,
           levelLabel: levelLabel(record.student.level),
-          material: latestScore?.material ?? "Materi latihan hari ini",
+          material: savedMaterialIsAvailable ? latestScore!.material : fallbackMaterial,
+          materialOptions,
+          programName: activeAssignment?.program.name ?? null,
           technique: latestScore?.technique ?? 70,
           focus: latestScore?.focus ?? 70,
           stamina: latestScore?.stamina ?? 70,

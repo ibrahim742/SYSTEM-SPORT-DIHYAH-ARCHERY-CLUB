@@ -4,6 +4,34 @@ import { prisma } from "@/lib/prisma";
 import { canManageStudent, scopedStudentWhere } from "@/lib/rbac";
 import { scoreSchema } from "@/lib/validation";
 
+async function findAssignedMaterial(studentId: string, material: string) {
+  const assignments = await prisma.programAssignment.findMany({
+    where: {
+      studentId,
+      deletedAt: null
+    },
+    include: {
+      program: {
+        include: {
+          details: {
+            orderBy: { order: "asc" }
+          }
+        }
+      }
+    },
+    orderBy: { assignedAt: "desc" }
+  });
+  const activeAssignment = assignments.find((assignment) => assignment.status === "AKTIF") ?? assignments[0] ?? null;
+
+  return activeAssignment?.program.details.find((detail) => detail.material === material) ?? null;
+}
+
+function scoreDate(value: string | undefined) {
+  if (!value) return new Date();
+
+  return new Date(`${value}T12:00:00.000Z`);
+}
+
 export async function GET() {
   try {
     const session = await requireSession();
@@ -34,12 +62,15 @@ export async function POST(request: Request) {
     const student = await prisma.student.findFirst({ where: { id: payload.studentId, deletedAt: null } });
     if (!student) throw new ApiError(404, "Murid tidak ditemukan");
     if (!canManageStudent(session, student.clubId, student.coachId)) throw new ApiError(403, "Akses murid ditolak");
+    const assignedMaterial = await findAssignedMaterial(payload.studentId, payload.material);
+    if (!assignedMaterial) throw new ApiError(422, "Materi harus dipilih dari Program Latihan yang aktif untuk murid ini");
 
     const score = await prisma.coachScore.create({
       data: {
         studentId: payload.studentId,
         coachId: session.user.id,
         material: payload.material,
+        scoredAt: scoreDate(payload.scoredDate),
         technique: payload.technique,
         focus: payload.focus,
         stamina: payload.stamina,
