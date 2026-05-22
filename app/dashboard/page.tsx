@@ -222,7 +222,7 @@ export default async function DashboardPage() {
         <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b bg-gradient-to-r from-slate-50 via-white to-emerald-50/50 px-3 py-2">
           <div>
             <h2 className="text-sm font-semibold">Monitoring Hari Ini</h2>
-            <p className="text-xs text-muted-foreground">Status diambil dari program aktif murid; jika tidak ada, sistem membaca assignment program terbaru.</p>
+            <p className="text-xs text-muted-foreground">Status program: belum = tidak ada assignment aktif, proses = assignment aktif, selesai = assignment ditandai selesai.</p>
           </div>
           <Button asChild variant="outline" size="sm">
             <Link href="/monitoring">Lihat Semua</Link>

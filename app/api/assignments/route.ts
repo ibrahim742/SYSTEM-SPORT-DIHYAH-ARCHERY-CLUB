@@ -1,4 +1,4 @@
-import { ApiError, created, handleApiError, ok, readJson, requireSession } from "@/lib/api";
+import { ApiError, handleApiError, ok, readJson, requireSession } from "@/lib/api";
 import { notifyStudent } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { canManageStudent, scopedStudentWhere } from "@/lib/rbac";
@@ -38,14 +38,43 @@ export async function POST(request: Request) {
     if (!program) throw new ApiError(404, "Program tidak ditemukan");
     if (program.sportId !== student.sportId) throw new ApiError(422, "Program harus sesuai minat olahraga murid");
 
-    const assignment = await prisma.programAssignment.create({
-      data: {
-        studentId: payload.studentId,
-        programId: payload.programId,
-        status: payload.status ?? "AKTIF",
-        startedAt: new Date()
-      },
-      include: { student: true, program: true }
+    const assignment = await prisma.$transaction(async (tx) => {
+      const existingActive = await tx.programAssignment.findFirst({
+        where: {
+          studentId: payload.studentId,
+          programId: payload.programId,
+          status: "AKTIF",
+          deletedAt: null
+        },
+        include: { student: true, program: true },
+        orderBy: { assignedAt: "desc" }
+      });
+
+      if (existingActive) return existingActive;
+
+      if ((payload.status ?? "AKTIF") === "AKTIF") {
+        await tx.programAssignment.updateMany({
+          where: {
+            studentId: payload.studentId,
+            status: "AKTIF",
+            deletedAt: null
+          },
+          data: {
+            status: "DIBATALKAN",
+            deletedAt: new Date()
+          }
+        });
+      }
+
+      return tx.programAssignment.create({
+        data: {
+          studentId: payload.studentId,
+          programId: payload.programId,
+          status: payload.status ?? "AKTIF",
+          startedAt: new Date()
+        },
+        include: { student: true, program: true }
+      });
     });
     await notifyStudent(prisma, assignment.studentId, {
       actorId: session.user.id,
@@ -54,7 +83,7 @@ export async function POST(request: Request) {
       href: "/portal/program"
     });
 
-    return created(assignment);
+    return ok(assignment);
   } catch (error) {
     return handleApiError(error);
   }

@@ -28,15 +28,34 @@ export async function PATCH(request: Request, { params }: Params) {
       if (!program) throw new ApiError(404, "Program tidak ditemukan");
       if (targetStudent && program.sportId !== targetStudent.sportId) throw new ApiError(422, "Program harus sesuai minat olahraga murid");
     }
-    const assignment = await prisma.programAssignment.update({
-      where: { id },
-      data: {
-        programId: payload.programId,
-        studentId: payload.studentId,
-        status: payload.status,
-        finishedAt: payload.status === "SELESAI" ? new Date() : undefined
-      },
-      include: { student: true, program: true }
+    const assignment = await prisma.$transaction(async (tx) => {
+      const nextStudentId = payload.studentId ?? existing.studentId;
+
+      if (payload.status === "AKTIF") {
+        await tx.programAssignment.updateMany({
+          where: {
+            id: { not: id },
+            studentId: nextStudentId,
+            status: "AKTIF",
+            deletedAt: null
+          },
+          data: {
+            status: "DIBATALKAN",
+            deletedAt: new Date()
+          }
+        });
+      }
+
+      return tx.programAssignment.update({
+        where: { id },
+        data: {
+          programId: payload.programId,
+          studentId: payload.studentId,
+          status: payload.status,
+          finishedAt: payload.status === "SELESAI" ? new Date() : undefined
+        },
+        include: { student: true, program: true }
+      });
     });
     await notifyStudents(prisma, [existing.studentId, assignment.studentId], {
       actorId: session.user.id,

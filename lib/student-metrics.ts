@@ -1,5 +1,6 @@
 type AssignmentMetricSource = {
   status?: string;
+  assignedAt?: Date | string | null;
   program?: {
     materials?: number | null;
   } | null;
@@ -7,6 +8,7 @@ type AssignmentMetricSource = {
 
 type TrainingLogMetricSource = {
   status?: string;
+  date?: Date | string | null;
 };
 
 type AttendanceRecordMetricSource = {
@@ -34,12 +36,25 @@ function percent(done: number, total: number) {
   return Math.max(0, Math.min(100, Math.round((done / total) * 100)));
 }
 
+function toTime(value: Date | string | null | undefined) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  const time = date.getTime();
+
+  return Number.isNaN(time) ? null : time;
+}
+
 export function calculateStudentMetrics(student: StudentMetricSource): StudentMetrics {
   const assignments = student.assignments ?? [];
   const latestAssignment = assignments[0];
   const activeAssignment = assignments.find((assignment) => assignment.status === "AKTIF") ?? latestAssignment;
   const trainingLogs = student.trainingLogs ?? [];
-  const completedLogs = trainingLogs.filter((log) => log.status === "SELESAI").length;
+  const assignmentStart = toTime(activeAssignment?.assignedAt);
+  const activeTrainingLogs = assignmentStart ? trainingLogs.filter((log) => {
+    const logTime = toTime(log.date);
+    return logTime ? logTime >= assignmentStart : true;
+  }) : trainingLogs;
+  const completedLogs = activeTrainingLogs.filter((log) => log.status === "SELESAI").length;
   const targetMaterials = activeAssignment?.program?.materials ?? latestAssignment?.program?.materials ?? 0;
 
   const progress =
@@ -47,8 +62,8 @@ export function calculateStudentMetrics(student: StudentMetricSource): StudentMe
       ? 100
       : targetMaterials > 0
         ? percent(completedLogs, targetMaterials)
-        : trainingLogs.length > 0
-          ? percent(completedLogs, trainingLogs.length)
+        : activeTrainingLogs.length > 0
+          ? percent(completedLogs, activeTrainingLogs.length)
           : Math.round(student.progress ?? 0);
 
   const attendanceRecords = (student.attendanceRecords ?? []).filter((record) => !record.session?.deletedAt);
