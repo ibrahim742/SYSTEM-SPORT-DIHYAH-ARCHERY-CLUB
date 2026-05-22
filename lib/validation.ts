@@ -194,7 +194,10 @@ export const studentCreateSchema = z.object({
 });
 
 export const studentUpdateSchema = studentCreateSchema
-  .omit({ username: true, password: true })
+  .extend({
+    username: usernameSchema.optional(),
+    password: z.preprocess((value) => (value === "" ? undefined : value), passwordSchema.optional())
+  })
   .partial()
   .extend({
     progress: z.coerce.number().int().min(0).max(100).optional(),

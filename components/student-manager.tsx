@@ -18,6 +18,7 @@ type CoachOption = { id: string; name: string; username: string; sportId: string
 type StudentRow = {
   id: string;
   name: string;
+  username: string;
   age: number;
   birthPlace: string | null;
   birthDate: string;
@@ -164,7 +165,7 @@ export function StudentManager({ students, clubs, sports, coaches, canCreate }: 
     const response = await fetch(isEdit ? `/api/students/${form.id}` : "/api/students", {
       method: isEdit ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(isEdit ? { ...payload, username: undefined, password: undefined } : payload)
+      body: JSON.stringify(isEdit ? { ...payload, password: form.password || undefined } : payload)
     });
     setSaving(false);
 
@@ -255,7 +256,7 @@ export function StudentManager({ students, clubs, sports, coaches, canCreate }: 
                         setForm({
                           id: student.id,
                           name: student.name,
-                          username: "",
+                          username: student.username,
                           password: "",
                           age: String(student.age),
                           birthPlace: student.birthPlace ?? "",
@@ -320,18 +321,14 @@ export function StudentManager({ students, clubs, sports, coaches, canCreate }: 
                 Nama
                 <Input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value, username: form.id ? form.username : usernameFromName(event.target.value) })} />
               </label>
-              {!form.id ? (
-                <>
-                  <label className="space-y-1 text-xs font-medium">
-                    Username
-                    <Input value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} />
-                  </label>
-                  <label className="space-y-1 text-xs font-medium">
-                    Password
-                    <Input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
-                  </label>
-                </>
-              ) : null}
+              <label className="space-y-1 text-xs font-medium">
+                Username
+                <Input value={form.username} onChange={(event) => setForm({ ...form, username: event.target.value })} />
+              </label>
+              <label className="space-y-1 text-xs font-medium">
+                {form.id ? "Password Baru" : "Password"}
+                <Input type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} placeholder={form.id ? "Kosongkan jika tidak diubah" : undefined} />
+              </label>
               <label className="space-y-1 text-xs font-medium">
                 Umur
                 <Input value={calculateAgeFromBirthDate(form.birthDate) || form.age} onChange={(event) => setForm({ ...form, age: event.target.value })} readOnly={Boolean(form.birthDate)} />
@@ -415,7 +412,7 @@ export function StudentManager({ students, clubs, sports, coaches, canCreate }: 
               <Button variant="outline" onClick={() => setForm(null)}>
                 Batal
               </Button>
-              <Button onClick={submit} disabled={saving || !form.name || !form.clubId || !form.sportId || !form.phone || (!form.id && (!form.username || !form.password))}>
+              <Button onClick={submit} disabled={saving || !form.name || !form.username || !form.clubId || !form.sportId || !form.phone || (!form.id && !form.password)}>
                 {saving ? "Menyimpan..." : "Simpan"}
               </Button>
             </div>

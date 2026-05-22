@@ -1,5 +1,8 @@
+import { Prisma } from "@prisma/client";
+
 import { ApiError, handleApiError, noContent, ok, readJson, requireSession } from "@/lib/api";
 import { notifyStudent } from "@/lib/notifications";
+import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { collapseTrainingLogDuplicates } from "@/lib/progress-analytics";
 import { canMutateStudent, isAdmin, scopedStudentWhere } from "@/lib/rbac";
@@ -74,6 +77,8 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const payloadWithoutCoach = { ...payload };
     delete payloadWithoutCoach.coachId;
+    delete payloadWithoutCoach.username;
+    delete payloadWithoutCoach.password;
     const data =
       session.user.role === "MURID"
         ? {
@@ -88,10 +93,22 @@ export async function PATCH(request: Request, { params }: Params) {
             ...birthDateUpdate
           };
 
-    const student = await prisma.student.update({
-      where: { id },
-      data,
-      include: { club: true, sport: true, coach: { select: { id: true, name: true, username: true } } }
+    const student = await prisma.$transaction(async (tx) => {
+      if (session.user.role === "ADMIN" && existing.userId && (payload.username || payload.password)) {
+        await tx.user.update({
+          where: { id: existing.userId },
+          data: {
+            ...(payload.username ? { username: payload.username } : {}),
+            ...(payload.password ? { passwordHash: await hashPassword(payload.password) } : {})
+          }
+        });
+      }
+
+      return tx.student.update({
+        where: { id },
+        data,
+        include: { club: true, sport: true, coach: { select: { id: true, name: true, username: true } } }
+      });
     });
     if (session.user.role !== "MURID") {
       await notifyStudent(prisma, student.id, {
@@ -104,6 +121,10 @@ export async function PATCH(request: Request, { params }: Params) {
 
     return ok(student);
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return handleApiError(new ApiError(409, "Username sudah dipakai"));
+    }
+
     return handleApiError(error);
   }
 }

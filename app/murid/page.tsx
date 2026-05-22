@@ -20,7 +20,7 @@ export default async function StudentsPage() {
           clubIds: session.user.clubIds
         }
       }),
-      include: { club: true, sport: true, coach: { select: { id: true, name: true, username: true } } },
+      include: { club: true, sport: true, coach: { select: { id: true, name: true, username: true } }, user: { select: { username: true } } },
       orderBy: { name: "asc" }
     }),
     prisma.club.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" } }),
@@ -49,6 +49,7 @@ export default async function StudentsPage() {
       students={students.map((student) => ({
         id: student.id,
         name: student.name,
+        username: student.user?.username ?? "",
         age: student.age,
         birthPlace: student.birthPlace,
         birthDate: student.birthDate?.toISOString().slice(0, 10) ?? "",
