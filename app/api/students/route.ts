@@ -90,6 +90,7 @@ export async function POST(request: Request) {
           sportId: payload.sportId,
           coachId,
           name: payload.name,
+          birthPlace: payload.birthPlace,
           birthDate: payload.birthDate ? new Date(payload.birthDate) : null,
           age: payload.age,
           branch: payload.branch,

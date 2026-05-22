@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { prisma } from "@/lib/prisma";
 import { isDatabaseUnavailable } from "@/lib/dev-auth";
 
@@ -19,7 +21,7 @@ export const defaultSystemSettings: SystemSettings = {
   faviconUrl: null
 };
 
-export async function getSystemSettings(): Promise<SystemSettings> {
+export const getSystemSettings = cache(async function getSystemSettings(): Promise<SystemSettings> {
   const settings = await prisma.systemSetting
     .findUnique({
       where: { key: "default" },
@@ -34,8 +36,9 @@ export async function getSystemSettings(): Promise<SystemSettings> {
     })
     .catch((error) => {
       if (isDatabaseUnavailable(error)) return null;
-      throw error;
+      console.error("System settings lookup failed", error);
+      return null;
     });
 
   return settings ?? defaultSystemSettings;
-}
+});

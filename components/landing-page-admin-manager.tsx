@@ -64,7 +64,7 @@ const sectionFieldConfig: Record<LandingSectionKey, SectionFieldConfig> = {
 const itemFieldConfig: Record<LandingSectionKey, ItemFieldConfig> = {
   hero: { description: true, eyebrow: true, imageUrl: true, subtitle: true },
   features: { description: true, icon: true },
-  gallery: { imageUrl: true },
+  gallery: { description: true, imageUrl: true },
   coaches: {},
   sports: { description: true, icon: true },
   statistics: { description: true, icon: true, value: true },
@@ -172,7 +172,7 @@ export function LandingPageAdminManager({ content }: { content: LandingContent }
   const isCoachesTab = tab === "coaches";
   const sectionFields = sectionFieldConfig[tab];
   const itemFields = itemFieldConfig[tab];
-  const itemMetaHeader = isHeroTab ? "Gambar" : isGalleryTab ? "Gambar" : tab === "statistics" ? "Value" : tab === "footer" ? "Value/Link" : "Icon";
+  const itemMetaHeader = isHeroTab ? "Gambar" : isGalleryTab ? "Preview/URL Gambar" : tab === "statistics" ? "Value" : tab === "footer" ? "Value/Link" : "Icon";
 
   useEffect(() => {
     setSectionForm(sectionToForm(content.sections[tab]));
@@ -355,7 +355,18 @@ export function LandingPageAdminManager({ content }: { content: LandingContent }
 
   function itemMeta(row: LandingItemView) {
     if (isHeroTab) return row.imageUrl || "-";
-    if (isGalleryTab) return row.imageUrl || "-";
+    if (isGalleryTab) {
+      if (!row.imageUrl) return "-";
+
+      return (
+        <div className="flex max-w-sm items-center gap-2">
+          <div className="flex h-9 w-12 shrink-0 items-center justify-center overflow-hidden rounded border bg-slate-50 text-slate-400">
+            <Image src={row.imageUrl} alt={row.title || "Foto galeri"} width={48} height={36} unoptimized className="h-full w-full object-cover" />
+          </div>
+          <span className="truncate text-[11px] text-muted-foreground">{row.imageUrl}</span>
+        </div>
+      );
+    }
     if (tab === "statistics") return row.value || "-";
     if (tab === "footer") return row.value || row.href || "-";
     return row.icon || "-";
@@ -517,7 +528,7 @@ export function LandingPageAdminManager({ content }: { content: LandingContent }
                     </td>
                     <td className="h-11 px-2">
                       <p className="font-semibold">{row.title}</p>
-                      <p className="max-w-md truncate text-[11px] text-muted-foreground">{row.description ?? row.href ?? "-"}</p>
+                      <p className="max-w-md truncate text-[11px] text-muted-foreground">{isGalleryTab ? row.description ?? row.imageUrl ?? "-" : row.description ?? row.href ?? "-"}</p>
                     </td>
                     <td className="h-11 px-2">{itemMeta(row)}</td>
                     <td className="h-11 px-2">
@@ -592,8 +603,8 @@ export function LandingPageAdminManager({ content }: { content: LandingContent }
               ) : null}
               {itemFields.description ? (
                 <label className="space-y-1 text-xs font-medium md:col-span-2">
-                  Deskripsi
-                  <Textarea value={itemForm.description} onChange={(event) => patchItem({ description: event.target.value })} />
+                  {isGalleryTab ? "Keterangan Foto" : "Deskripsi"}
+                  <Textarea value={itemForm.description} onChange={(event) => patchItem({ description: event.target.value })} placeholder={isGalleryTab ? "Keterangan singkat yang tampil di bawah judul/alt foto." : undefined} />
                 </label>
               ) : null}
               {itemFields.href ? (
@@ -644,7 +655,15 @@ export function LandingPageAdminManager({ content }: { content: LandingContent }
                 <div className="flex h-52 items-center justify-center overflow-hidden rounded-md border bg-white text-slate-400">
                   {itemForm.imageUrl ? <Image src={itemForm.imageUrl} alt={itemForm.title || "Preview item"} width={220} height={208} unoptimized className="h-full w-full object-cover" /> : <ImageIcon className="h-8 w-8" />}
                 </div>
-                <p className="mt-2 line-clamp-2 text-xs font-medium text-slate-600">{itemForm.imageUrl || "Belum ada gambar."}</p>
+                {isGalleryTab ? (
+                  <div className="mt-2 space-y-1">
+                    <p className="line-clamp-2 text-xs font-semibold text-slate-700">{itemForm.title || "Belum ada judul/alt foto."}</p>
+                    <p className="line-clamp-3 text-xs text-slate-600">{itemForm.description || "Belum ada keterangan foto."}</p>
+                    <p className="truncate text-[11px] text-slate-500">{itemForm.imageUrl || "Belum ada gambar."}</p>
+                  </div>
+                ) : (
+                  <p className="mt-2 line-clamp-2 text-xs font-medium text-slate-600">{itemForm.imageUrl || "Belum ada gambar."}</p>
+                )}
               </div>
             ) : null}
           </div>

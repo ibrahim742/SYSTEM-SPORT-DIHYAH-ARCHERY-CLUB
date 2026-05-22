@@ -1,0 +1,1 @@
+ALTER TABLE `Student` ADD COLUMN `birthPlace` VARCHAR(191) NULL;

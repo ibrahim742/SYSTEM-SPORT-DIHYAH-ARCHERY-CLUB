@@ -21,6 +21,18 @@ export const dynamic = "force-dynamic";
 
 type MonitoringRow = Awaited<ReturnType<typeof getDashboardRows>>["monitoring"][number];
 
+function currentAssignment(assignments: MonitoringRow["assignments"]) {
+  return assignments.find((assignment) => assignment.status === "AKTIF") ?? assignments[0] ?? null;
+}
+
+function dashboardAssignmentStatus(assignments: MonitoringRow["assignments"]) {
+  const assignment = currentAssignment(assignments);
+  if (!assignment) return "BELUM";
+  if (assignment.status === "SELESAI") return "SELESAI";
+  if (assignment.status === "AKTIF") return "PROSES";
+  return "BELUM";
+}
+
 async function getDashboardRows() {
   const session = await auth();
   if (!session?.user) {
@@ -157,8 +169,8 @@ function makeStats(total: number, hadir: number, tidakHadir: number, avgProgress
 const columns: Column<MonitoringRow>[] = [
   { key: "student", header: "Nama Murid", cell: (row) => <span className="font-medium">{row.name}</span> },
   { key: "level", header: "Level", cell: (row) => <span className={softPill(levelTone(levelLabel(row.level)))}>{levelLabel(row.level)}</span> },
-  { key: "program", header: "Program Hari Ini", cell: (row) => row.assignments[0]?.program.name ?? "-" },
-  { key: "status", header: "Status", cell: (row) => <BadgeStatus status={trainingStatusLabel(row.assignments[0]?.status === "SELESAI" ? "SELESAI" : row.assignments[0] ? "PROSES" : "BELUM")} /> },
+  { key: "program", header: "Program Hari Ini", cell: (row) => currentAssignment(row.assignments)?.program.name ?? "-" },
+  { key: "status", header: "Status", cell: (row) => <BadgeStatus status={trainingStatusLabel(dashboardAssignmentStatus(row.assignments))} /> },
   { key: "progress", header: "Progress %", cell: (row) => <ProgressBar value={row.progress} /> },
   { key: "attendance", header: "Kehadiran %", cell: (row) => <ProgressBar value={row.attendance} /> },
   {
@@ -207,8 +219,11 @@ export default async function DashboardPage() {
       </ChartBox>
 
       <section className="overflow-hidden rounded-md border bg-background shadow-sm shadow-slate-200/60">
-        <div className="flex h-10 items-center justify-between border-b bg-gradient-to-r from-slate-50 via-white to-emerald-50/50 px-3">
-          <h2 className="text-sm font-semibold">Monitoring Hari Ini</h2>
+        <div className="flex min-h-12 flex-wrap items-center justify-between gap-2 border-b bg-gradient-to-r from-slate-50 via-white to-emerald-50/50 px-3 py-2">
+          <div>
+            <h2 className="text-sm font-semibold">Monitoring Hari Ini</h2>
+            <p className="text-xs text-muted-foreground">Status diambil dari program aktif murid; jika tidak ada, sistem membaca assignment program terbaru.</p>
+          </div>
           <Button asChild variant="outline" size="sm">
             <Link href="/monitoring">Lihat Semua</Link>
           </Button>

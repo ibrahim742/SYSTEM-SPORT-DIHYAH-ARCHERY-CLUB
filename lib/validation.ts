@@ -182,6 +182,7 @@ export const studentCreateSchema = z.object({
   clubId: idSchema,
   sportId: idSchema,
   coachId: idSchema.optional().nullable(),
+  birthPlace: nullableTextSchema,
   birthDate: dateStringSchema.optional().nullable(),
   age: z.coerce.number().int().min(5).max(80),
   branch: requiredTextSchema.max(80),

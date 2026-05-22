@@ -55,6 +55,7 @@ export async function PATCH(request: Request, { params }: Params) {
     const targetClubId = payload.clubId ?? existing.clubId;
     const targetSportId = payload.sportId ?? existing.sportId;
     const targetCoachId = session.user.role === "ADMIN" ? payload.coachId : undefined;
+    const birthDateUpdate = "birthDate" in payload ? { birthDate: payload.birthDate ? new Date(payload.birthDate) : null } : {};
 
     if (targetCoachId) {
       const coach = await prisma.user.findFirst({
@@ -78,13 +79,13 @@ export async function PATCH(request: Request, { params }: Params) {
         ? {
             phone: payload.phone,
             address: payload.address,
-            birthDate: payload.birthDate ? new Date(payload.birthDate) : undefined,
+            ...birthDateUpdate,
             photoUrl: payload.photoUrl
           }
         : {
             ...payloadWithoutCoach,
             ...(session.user.role === "ADMIN" && "coachId" in payload ? { coachId: payload.coachId ?? null } : {}),
-            birthDate: payload.birthDate ? new Date(payload.birthDate) : undefined
+            ...birthDateUpdate
           };
 
     const student = await prisma.student.update({

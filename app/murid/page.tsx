@@ -50,6 +50,8 @@ export default async function StudentsPage() {
         id: student.id,
         name: student.name,
         age: student.age,
+        birthPlace: student.birthPlace,
+        birthDate: student.birthDate?.toISOString().slice(0, 10) ?? "",
         clubId: student.clubId,
         clubName: student.club.name,
         sportId: student.sportId,

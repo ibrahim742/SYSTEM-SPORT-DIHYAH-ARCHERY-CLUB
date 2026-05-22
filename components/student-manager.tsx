@@ -19,6 +19,8 @@ type StudentRow = {
   id: string;
   name: string;
   age: number;
+  birthPlace: string | null;
+  birthDate: string;
   clubId: string;
   clubName: string;
   sportId: string;
@@ -40,6 +42,8 @@ type FormState = {
   username: string;
   password: string;
   age: string;
+  birthPlace: string;
+  birthDate: string;
   clubId: string;
   sportId: string;
   coachId: string;
@@ -56,6 +60,25 @@ function usernameFromName(name: string) {
 
 function coachLabel(coach: CoachOption) {
   return coach.name?.trim() || coach.username;
+}
+
+function calculateAgeFromBirthDate(birthDate: string) {
+  if (!birthDate) return "";
+
+  const date = new Date(`${birthDate}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const today = new Date();
+  let age = today.getFullYear() - date.getFullYear();
+  const monthDiff = today.getMonth() - date.getMonth();
+  const dayDiff = today.getDate() - date.getDate();
+
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age -= 1;
+  return age >= 0 ? String(age) : "";
+}
+
+function ageForPayload(form: FormState) {
+  return Number(calculateAgeFromBirthDate(form.birthDate) || form.age);
 }
 
 const PAGE_SIZE = 5;
@@ -102,6 +125,8 @@ export function StudentManager({ students, clubs, sports, coaches, canCreate }: 
       username: "",
       password: "",
       age: "12",
+      birthPlace: "",
+      birthDate: "",
       clubId: clubs[0]?.id ?? "",
       sportId: sports[0]?.id ?? "",
       coachId: "",
@@ -123,7 +148,9 @@ export function StudentManager({ students, clubs, sports, coaches, canCreate }: 
       name: form.name,
       username: form.username || usernameFromName(form.name),
       password: form.password,
-      age: Number(form.age),
+      age: ageForPayload(form),
+      birthPlace: form.birthPlace || null,
+      birthDate: form.birthDate || null,
       clubId: form.clubId,
       sportId: form.sportId,
       coachId: form.coachId || null,
@@ -231,6 +258,8 @@ export function StudentManager({ students, clubs, sports, coaches, canCreate }: 
                           username: "",
                           password: "",
                           age: String(student.age),
+                          birthPlace: student.birthPlace ?? "",
+                          birthDate: student.birthDate,
                           clubId: student.clubId,
                           sportId: student.sportId,
                           coachId: student.coachId ?? "",
@@ -305,7 +334,16 @@ export function StudentManager({ students, clubs, sports, coaches, canCreate }: 
               ) : null}
               <label className="space-y-1 text-xs font-medium">
                 Umur
-                <Input value={form.age} onChange={(event) => setForm({ ...form, age: event.target.value })} />
+                <Input value={calculateAgeFromBirthDate(form.birthDate) || form.age} onChange={(event) => setForm({ ...form, age: event.target.value })} readOnly={Boolean(form.birthDate)} />
+                {form.birthDate ? <p className="text-[11px] leading-4 text-muted-foreground">Umur otomatis dari tanggal lahir.</p> : null}
+              </label>
+              <label className="space-y-1 text-xs font-medium">
+                Tempat Lahir
+                <Input value={form.birthPlace} onChange={(event) => setForm({ ...form, birthPlace: event.target.value })} />
+              </label>
+              <label className="space-y-1 text-xs font-medium">
+                Tanggal Lahir
+                <Input type="date" value={form.birthDate} onChange={(event) => setForm({ ...form, birthDate: event.target.value, age: calculateAgeFromBirthDate(event.target.value) || form.age })} />
               </label>
               <label className="space-y-1 text-xs font-medium">
                 Club

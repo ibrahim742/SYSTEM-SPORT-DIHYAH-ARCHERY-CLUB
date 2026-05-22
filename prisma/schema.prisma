@@ -278,6 +278,7 @@ model Student {
   sportId    String
   coachId    String?
   name       String
+  birthPlace String?
   birthDate  DateTime?
   age        Int
   branch     String
