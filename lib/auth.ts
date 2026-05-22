@@ -37,6 +37,13 @@ const loginSchema = z.object({
   password: z.string().min(8)
 });
 
+function userLookupWhere(identifier: string) {
+  const trimmed = identifier.trim();
+  if (trimmed.includes("@")) return { email: trimmed.toLowerCase() };
+
+  return { username: trimmed };
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: process.env.AUTH_TRUST_HOST === "true",
   session: {
@@ -55,32 +62,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
         const ip = getClientIp(request);
-        const username = parsed.data.username;
-        const lock = getLoginLock(username, ip);
+        const identifier = parsed.data.username.trim();
+        const lock = getLoginLock(identifier, ip);
 
         if (lock.locked) {
           await writeAuditLog({
             action: "LOGIN_RATE_LIMITED",
             entity: "User",
-            metadata: { username, ip, retryAfter: lock.retryAfter }
+            metadata: { username: identifier, ip, retryAfter: lock.retryAfter }
           });
           return null;
         }
 
         async function rejectLogin(reason: string) {
-          recordLoginFailure(username, ip);
+          recordLoginFailure(identifier, ip);
           await writeAuditLog({
             action: "LOGIN_FAILED",
             entity: "User",
-            metadata: { username, ip, reason }
+            metadata: { username: identifier, ip, reason }
           });
 
           return null;
         }
 
         try {
-          const user = await prisma.user.findUnique({
-            where: { username },
+          const user = await prisma.user.findFirst({
+            where: userLookupWhere(identifier),
             include: {
               coachClubs: {
                 select: {
@@ -99,13 +106,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             where: { id: user.id },
             data: { lastLogin: new Date() }
           });
-          recordLoginSuccess(username, ip);
+          recordLoginSuccess(identifier, ip);
+          recordLoginSuccess(user.username, ip);
+          if (user.email) recordLoginSuccess(user.email, ip);
           await writeAuditLog({
             actorId: user.id,
             action: "LOGIN_SUCCESS",
             entity: "User",
             entityId: user.id,
-            metadata: { username, ip }
+            metadata: { username: identifier, resolvedUsername: user.username, ip }
           });
 
           return {
@@ -119,9 +128,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           };
         } catch (error) {
           if (isDatabaseUnavailable(error)) {
-            const devUser = await authorizeDevelopmentUser(username, parsed.data.password);
+            const devUser = await authorizeDevelopmentUser(identifier, parsed.data.password);
             if (!devUser) return rejectLogin("dev_fallback_failed");
-            recordLoginSuccess(username, ip);
+            recordLoginSuccess(identifier, ip);
             return devUser;
           }
 

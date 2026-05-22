@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { handleApiError, readJson } from "@/lib/api";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
-import { getClientIp, writeAuditLog } from "@/lib/security";
+import { clearLoginFailures, getClientIp, writeAuditLog } from "@/lib/security";
 import { resetPasswordSchema } from "@/lib/validation";
 
 function tokenHash(token: string) {
@@ -36,7 +36,9 @@ export async function POST(request: Request) {
         deletedAt: null
       },
       select: {
-        id: true
+        id: true,
+        username: true,
+        email: true
       }
     });
 
@@ -60,6 +62,7 @@ export async function POST(request: Request) {
       entityId: user.id,
       metadata: { email, ip: getClientIp(request) }
     });
+    clearLoginFailures([user.username, user.email, email], getClientIp(request));
 
     return NextResponse.json({ message: "Password berhasil diubah. Silakan login dengan password baru." });
   } catch (error) {

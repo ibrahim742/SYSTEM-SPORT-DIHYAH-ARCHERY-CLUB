@@ -47,7 +47,7 @@ export function LoginForm({ branding, callbackUrl }: { branding: LoginBranding; 
 
     setLoading(false);
     if (response?.error) {
-      setError("Username atau password tidak sesuai.");
+      setError("Username/email atau password tidak sesuai.");
       return;
     }
 
@@ -68,7 +68,7 @@ export function LoginForm({ branding, callbackUrl }: { branding: LoginBranding; 
         </div>
         <form className="space-y-3 p-4" onSubmit={handleSubmit}>
           <div className="space-y-1">
-            <label className="text-xs font-medium">Username</label>
+            <label className="text-xs font-medium">Username atau Email</label>
             <div className="relative">
               <UserRound className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input className="pl-7" name="username" autoComplete="username" required />

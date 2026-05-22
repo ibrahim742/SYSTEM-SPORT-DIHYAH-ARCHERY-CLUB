@@ -124,6 +124,16 @@ export function recordLoginSuccess(username: string, ip: string) {
   }
 }
 
+export function clearLoginFailures(identifiers: Array<string | null | undefined>, ip?: string | null) {
+  for (const identifier of identifiers) {
+    const normalized = identifier?.trim();
+    if (!normalized) continue;
+    store.loginFailures.delete(`username:${normalized.toLowerCase()}`);
+  }
+
+  if (ip) store.loginFailures.delete(`ip:${normalizeIp(ip)}`);
+}
+
 export async function writeAuditLog(input: {
   actorId?: string | null;
   action: string;
