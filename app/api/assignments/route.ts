@@ -38,6 +38,7 @@ export async function POST(request: Request) {
     if (!program) throw new ApiError(404, "Program tidak ditemukan");
     if (program.sportId !== student.sportId) throw new ApiError(422, "Program harus sesuai minat olahraga murid");
 
+    let alreadyActive = false;
     const assignment = await prisma.$transaction(async (tx) => {
       const existingActive = await tx.programAssignment.findFirst({
         where: {
@@ -50,7 +51,10 @@ export async function POST(request: Request) {
         orderBy: { assignedAt: "desc" }
       });
 
-      if (existingActive) return existingActive;
+      if (existingActive) {
+        alreadyActive = true;
+        return existingActive;
+      }
 
       if ((payload.status ?? "AKTIF") === "AKTIF") {
         await tx.programAssignment.updateMany({
@@ -76,14 +80,17 @@ export async function POST(request: Request) {
         include: { student: true, program: true }
       });
     });
-    await notifyStudent(prisma, assignment.studentId, {
-      actorId: session.user.id,
-      title: "Program latihan baru",
-      message: `Program "${assignment.program.name}" diberikan ke akun Anda. Buka menu program untuk melihat detailnya.`,
-      href: "/portal/program"
-    });
 
-    return ok(assignment);
+    if (!alreadyActive) {
+      await notifyStudent(prisma, assignment.studentId, {
+        actorId: session.user.id,
+        title: "Program latihan baru",
+        message: `Program "${assignment.program.name}" diberikan ke akun Anda. Buka menu program untuk melihat detailnya.`,
+        href: "/portal/program"
+      });
+    }
+
+    return ok({ ...assignment, alreadyActive });
   } catch (error) {
     return handleApiError(error);
   }

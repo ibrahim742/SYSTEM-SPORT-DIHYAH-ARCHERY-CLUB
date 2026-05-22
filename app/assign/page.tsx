@@ -58,6 +58,8 @@ export default async function AssignProgramPage() {
       students={students.map((student) => {
         const trainingLogs = collapseTrainingLogDuplicates(student.trainingLogs);
         const metrics = calculateStudentMetrics({ ...student, trainingLogs });
+        const currentAssignment = student.assignments.find((assignment) => assignment.status === "AKTIF") ?? student.assignments[0] ?? null;
+
         return {
           id: student.id,
           name: student.name,
@@ -65,7 +67,10 @@ export default async function AssignProgramPage() {
           sportId: student.sportId,
           sportName: student.sport.name,
           levelLabel: levelLabel(student.level),
-          progress: metrics.progress
+          progress: metrics.progress,
+          currentProgramId: currentAssignment?.program.id ?? null,
+          currentProgramName: currentAssignment?.program.name ?? null,
+          currentAssignmentStatus: currentAssignment?.status ?? null
         };
       })}
     />
