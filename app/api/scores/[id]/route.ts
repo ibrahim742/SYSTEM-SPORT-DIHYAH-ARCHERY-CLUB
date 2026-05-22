@@ -7,25 +7,47 @@ import { scoreSchema } from "@/lib/validation";
 type Params = { params: Promise<{ id: string }> };
 
 async function findAssignedMaterial(studentId: string, material: string) {
-  const assignments = await prisma.programAssignment.findMany({
+  const student = await prisma.student.findFirst({
+    where: { id: studentId, deletedAt: null },
+    include: {
+      assignments: {
+        where: { deletedAt: null },
+        include: {
+          program: {
+            include: {
+              details: {
+                orderBy: { order: "asc" }
+              }
+            }
+          }
+        },
+        orderBy: { assignedAt: "desc" }
+      }
+    }
+  });
+  if (!student) return null;
+
+  const levelAssignment =
+    student.assignments.find((assignment) => assignment.status === "AKTIF" && assignment.program.level === student.level) ??
+    student.assignments.find((assignment) => assignment.program.level === student.level) ??
+    null;
+  const fallbackProgram = await prisma.program.findFirst({
     where: {
-      studentId,
+      sportId: student.sportId,
+      level: student.level,
+      status: "ACTIVE",
       deletedAt: null
     },
     include: {
-      program: {
-        include: {
-          details: {
-            orderBy: { order: "asc" }
-          }
-        }
+      details: {
+        orderBy: { order: "asc" }
       }
     },
-    orderBy: { assignedAt: "desc" }
+    orderBy: { name: "asc" }
   });
-  const activeAssignment = assignments.find((assignment) => assignment.status === "AKTIF") ?? assignments[0] ?? null;
+  const scoringProgram = levelAssignment?.program ?? fallbackProgram ?? student.assignments.find((assignment) => assignment.status === "AKTIF")?.program ?? student.assignments[0]?.program ?? null;
 
-  return activeAssignment?.program.details.find((detail) => detail.material === material) ?? null;
+  return scoringProgram?.details.find((detail) => detail.material === material) ?? null;
 }
 
 function scoreDate(value: string | undefined) {

@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     const program = await prisma.program.findFirst({ where: { id: payload.programId, deletedAt: null, status: "ACTIVE" } });
     if (!program) throw new ApiError(404, "Program tidak ditemukan");
     if (program.sportId !== student.sportId) throw new ApiError(422, "Program harus sesuai minat olahraga murid");
+    if (program.level !== student.level) throw new ApiError(422, "Program harus sesuai level murid");
 
     let alreadyActive = false;
     const assignment = await prisma.$transaction(async (tx) => {

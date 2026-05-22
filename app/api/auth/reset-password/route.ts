@@ -14,7 +14,7 @@ function tokenHash(token: string) {
 export async function POST(request: Request) {
   try {
     const { token, password } = await readJson(request, resetPasswordSchema);
-    const hashedToken = tokenHash(token);
+    const hashedToken = tokenHash(token.trim());
 
     const verificationToken = await prisma.verificationToken.findFirst({
       where: {

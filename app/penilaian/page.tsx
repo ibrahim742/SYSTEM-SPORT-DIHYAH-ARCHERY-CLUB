@@ -55,55 +55,73 @@ export default async function CoachScoringPage({ searchParams }: PageProps) {
   });
   const selectedDate = isDateString(resolvedSearchParams?.date) ? resolvedSearchParams!.date! : latestSession?.date.toISOString().slice(0, 10) ?? isoToday();
   const range = dayRange(selectedDate);
-  const attendance = await prisma.attendanceSession.findFirst({
-    where: {
-      deletedAt: null,
-      date: { gte: range.start, lt: range.end },
-      records: {
-        some: {
-          student: scope
+  const [attendance, scoringPrograms] = await Promise.all([
+    prisma.attendanceSession.findFirst({
+      where: {
+        deletedAt: null,
+        date: { gte: range.start, lt: range.end },
+        records: {
+          some: {
+            student: scope
+          }
         }
-      }
-    },
-    include: {
-      records: {
-        where: { status: "HADIR", student: scope },
-        include: {
-          student: {
-            include: {
-              club: true,
-              assignments: {
-                where: { deletedAt: null },
-                include: {
-                  program: {
-                    include: {
-                      details: {
-                        orderBy: { order: "asc" }
+      },
+      include: {
+        records: {
+          where: { status: "HADIR", student: scope },
+          include: {
+            student: {
+              include: {
+                club: true,
+                assignments: {
+                  where: { deletedAt: null },
+                  include: {
+                    program: {
+                      include: {
+                        details: {
+                          orderBy: { order: "asc" }
+                        }
                       }
                     }
-                  }
+                  },
+                  orderBy: { assignedAt: "desc" }
                 },
-                orderBy: { assignedAt: "desc" }
-              },
-              scores: { where: { deletedAt: null, scoredAt: { gte: range.start, lt: range.end } }, orderBy: { scoredAt: "desc" }, take: 1 }
+                scores: { where: { deletedAt: null, scoredAt: { gte: range.start, lt: range.end } }, orderBy: { scoredAt: "desc" }, take: 1 }
+              }
             }
           }
         }
       }
-    }
-  });
+    }),
+    prisma.program.findMany({
+      where: { deletedAt: null, status: "ACTIVE" },
+      include: {
+        details: {
+          orderBy: { order: "asc" }
+        }
+      },
+      orderBy: [{ sportId: "asc" }, { level: "asc" }, { name: "asc" }]
+    })
+  ]);
   const records = [...(attendance?.records ?? [])].sort((a, b) => a.student.name.localeCompare(b.student.name));
+  const fallbackPrograms = new Map(scoringPrograms.map((program) => [`${program.sportId}:${program.level}`, program]));
 
   return (
     <CoachScoringTable
       selectedDate={selectedDate}
       rows={records.map((record) => {
         const latestScore = record.student.scores[0];
-        const activeAssignment = record.student.assignments.find((assignment) => assignment.status === "AKTIF") ?? record.student.assignments[0] ?? null;
-        const materialOptions = activeAssignment?.program.details.map((detail) => ({
+        const levelAssignment =
+          record.student.assignments.find((assignment) => assignment.status === "AKTIF" && assignment.program.level === record.student.level) ??
+          record.student.assignments.find((assignment) => assignment.program.level === record.student.level) ??
+          null;
+        const fallbackProgram = fallbackPrograms.get(`${record.student.sportId}:${record.student.level}`) ?? null;
+        const scoringProgram = levelAssignment?.program ?? fallbackProgram ?? record.student.assignments.find((assignment) => assignment.status === "AKTIF")?.program ?? record.student.assignments[0]?.program ?? null;
+        const materialOptions = scoringProgram?.details.map((detail) => ({
           id: detail.id,
           label: detail.material,
-          meta: [detail.day, detail.set, detail.reps, detail.duration].filter(Boolean).join(" · ")
+          meta: [detail.day, detail.set, detail.reps, detail.duration].filter(Boolean).join(" · "),
+          day: detail.day
         })) ?? [];
         const fallbackMaterial = materialOptions[0]?.label ?? "Belum ada materi program";
         const savedMaterialIsAvailable = latestScore ? materialOptions.some((option) => option.label === latestScore.material) : false;
@@ -116,12 +134,13 @@ export default async function CoachScoringPage({ searchParams }: PageProps) {
           levelLabel: levelLabel(record.student.level),
           material: savedMaterialIsAvailable ? latestScore!.material : fallbackMaterial,
           materialOptions,
-          programName: activeAssignment?.program.name ?? null,
+          programName: scoringProgram?.name ?? null,
           technique: latestScore?.technique ?? 70,
           focus: latestScore?.focus ?? 70,
           stamina: latestScore?.stamina ?? 70,
           grade: latestScore?.grade ?? "B",
           note: latestScore?.note ?? "",
+          scoreId: latestScore?.id ?? null,
           scoredAt: latestScore?.scoredAt.toISOString() ?? null
         };
       })}

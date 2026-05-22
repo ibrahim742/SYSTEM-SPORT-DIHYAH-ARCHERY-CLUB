@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     const expires = new Date(Date.now() + 60 * 60 * 1000);
     const resetUrl = `${publicOrigin(request).replace(/\/$/, "")}/reset-password?token=${encodeURIComponent(token)}`;
 
-    await prisma.verificationToken.deleteMany({ where: { identifier } });
+    await prisma.verificationToken.deleteMany({ where: { identifier, expires: { lt: new Date() } } });
     await prisma.verificationToken.create({
       data: {
         identifier,

@@ -43,8 +43,12 @@ export function AssignProgramForm({ programs, students, sports }: { programs: Pr
   const [studentRows, setStudentRows] = useState(students);
   const [sportId, setSportId] = useState(sports[0]?.id ?? programs[0]?.sportId ?? students[0]?.sportId ?? "");
   const filteredPrograms = useMemo(() => programs.filter((program) => !sportId || program.sportId === sportId), [programs, sportId]);
-  const filteredStudents = useMemo(() => studentRows.filter((student) => !sportId || student.sportId === sportId), [studentRows, sportId]);
   const [programId, setProgramId] = useState(filteredPrograms[0]?.id ?? "");
+  const selectedProgram = useMemo(() => programs.find((program) => program.id === programId) ?? null, [programId, programs]);
+  const filteredStudents = useMemo(
+    () => studentRows.filter((student) => (!sportId || student.sportId === sportId) && (!selectedProgram || student.levelLabel === selectedProgram.levelLabel)),
+    [selectedProgram, studentRows, sportId]
+  );
   const [studentIds, setStudentIds] = useState<string[]>(filteredStudents.slice(0, 3).map((student) => student.id));
   const [programPage, setProgramPage] = useState(1);
   const [studentPage, setStudentPage] = useState(1);
@@ -84,8 +88,7 @@ export function AssignProgramForm({ programs, students, sports }: { programs: Pr
   }
 
   async function submit() {
-    const program = programs.find((item) => item.id === programId);
-    if (!program) {
+    if (!selectedProgram) {
       setMessage("Pilih program terlebih dahulu.");
       return;
     }
@@ -119,21 +122,21 @@ export function AssignProgramForm({ programs, students, sports }: { programs: Pr
 
           return {
             ...student,
-            currentProgramId: program.id,
-            currentProgramName: program.name,
+            currentProgramId: selectedProgram.id,
+            currentProgramName: selectedProgram.name,
             currentAssignmentStatus: "AKTIF",
-            progress: student.currentProgramId === program.id ? student.progress : 0
+            progress: student.currentProgramId === selectedProgram.id ? student.progress : 0
           };
         })
       );
 
       const assignedCount = studentIds.length - alreadyActiveCount;
       if (assignedCount > 0 && alreadyActiveCount > 0) {
-        setMessage(`${assignedCount} murid berhasil menerima "${program.name}", ${alreadyActiveCount} murid sudah aktif sebelumnya.`);
+        setMessage(`${assignedCount} murid berhasil menerima "${selectedProgram.name}", ${alreadyActiveCount} murid sudah aktif sebelumnya.`);
       } else if (assignedCount > 0) {
-        setMessage(`${assignedCount} murid berhasil menerima program "${program.name}".`);
+        setMessage(`${assignedCount} murid berhasil menerima program "${selectedProgram.name}".`);
       } else {
-        setMessage(`Program "${program.name}" sudah aktif untuk murid yang dipilih.`);
+        setMessage(`Program "${selectedProgram.name}" sudah aktif untuk murid yang dipilih.`);
       }
 
       router.refresh();

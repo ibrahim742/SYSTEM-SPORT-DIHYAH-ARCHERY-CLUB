@@ -27,6 +27,7 @@ export async function PATCH(request: Request, { params }: Params) {
       const program = await prisma.program.findFirst({ where: { id: payload.programId, deletedAt: null, status: "ACTIVE" } });
       if (!program) throw new ApiError(404, "Program tidak ditemukan");
       if (targetStudent && program.sportId !== targetStudent.sportId) throw new ApiError(422, "Program harus sesuai minat olahraga murid");
+      if (targetStudent && program.level !== targetStudent.level) throw new ApiError(422, "Program harus sesuai level murid");
     }
     const assignment = await prisma.$transaction(async (tx) => {
       const nextStudentId = payload.studentId ?? existing.studentId;

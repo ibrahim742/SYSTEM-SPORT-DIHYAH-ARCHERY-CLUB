@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Save, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Save, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { levelAccent, levelTone, softPill } from "@/lib/ui-styles";
@@ -23,6 +23,7 @@ type ScoreRow = {
     id: string;
     label: string;
     meta: string;
+    day: string;
   }[];
   programName: string | null;
   technique: number;
@@ -30,6 +31,7 @@ type ScoreRow = {
   stamina: number;
   grade: string;
   note: string;
+  scoreId: string | null;
   scoredAt: string | null;
 };
 const PAGE_SIZE = 5;
@@ -55,6 +57,7 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
   const [page, setPage] = useState(1);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [editingStudentIds, setEditingStudentIds] = useState<string[]>([]);
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const visibleRows = useMemo(() => rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [page, rows]);
   const firstVisibleRow = rows.length ? (page - 1) * PAGE_SIZE + 1 : 0;
@@ -65,6 +68,7 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
     setDate(selectedDate);
     setPage(1);
     setMessage("");
+    setEditingStudentIds([]);
   }, [initialRows, selectedDate]);
 
   useEffect(() => {
@@ -79,17 +83,30 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
     router.push(`/penilaian?date=${date}`);
   }
 
+  function isEditing(row: ScoreRow) {
+    return !row.scoreId || editingStudentIds.includes(row.studentId);
+  }
+
+  function toggleEdit(studentId: string) {
+    setEditingStudentIds((current) => (current.includes(studentId) ? current.filter((id) => id !== studentId) : [...current, studentId]));
+  }
+
   async function saveScores() {
-    const rowsWithoutMaterials = rows.filter((row) => row.materialOptions.length === 0);
+    const rowsToSave = rows.filter(isEditing);
+    const rowsWithoutMaterials = rowsToSave.filter((row) => row.materialOptions.length === 0);
     if (rowsWithoutMaterials.length > 0) {
       setMessage(`${rowsWithoutMaterials.length} murid belum punya materi dari Program Latihan aktif.`);
+      return;
+    }
+    if (rowsToSave.length === 0) {
+      setMessage("Semua nilai sudah tersimpan. Klik Edit Nilai untuk mengubah data.");
       return;
     }
 
     setSaving(true);
     setMessage("");
     const responses = await Promise.all(
-      rows.map((row) =>
+      rowsToSave.map((row) =>
         fetch("/api/scores", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -115,6 +132,7 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
       return;
     }
 
+    setEditingStudentIds([]);
     setMessage("Nilai berhasil disimpan.");
     router.refresh();
   }
@@ -152,14 +170,17 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
             <TableHead className="w-24">Nilai</TableHead>
             <TableHead className="min-w-[130px]">Riwayat</TableHead>
             <TableHead className="min-w-[220px]">Catatan Coach</TableHead>
+            <TableHead className="w-28">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {visibleRows.map((row, index) => {
             const rowIndex = (page - 1) * PAGE_SIZE + index;
             const history = formatScoreHistory(row.scoredAt);
+            const editable = isEditing(row);
+            const materialMeta = row.materialOptions.find((option) => option.label === row.material)?.meta ?? "";
             return (
-            <TableRow key={row.studentId} className={cn("border-l-2", levelAccent(row.levelLabel))}>
+            <TableRow key={row.studentId} className={cn("border-l-2", levelAccent(row.levelLabel), !editable && "bg-slate-50/60 text-slate-500")}>
               <TableCell className="h-16">
                 <div className="min-w-0">
                   <p className="font-medium">{row.name}</p>
@@ -178,10 +199,10 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
                       const selectedMaterial = row.materialOptions.find((option) => option.id === value);
                       if (selectedMaterial) update(rowIndex, { material: selectedMaterial.label });
                     }}
-                    disabled={row.materialOptions.length === 0}
+                    disabled={row.materialOptions.length === 0 || !editable}
                   >
                     <SelectTrigger className="bg-slate-50/70 focus:bg-white">
-                      <SelectValue placeholder="Pilih materi program" />
+                      <span className="block truncate">{row.materialOptions.find((option) => option.label === row.material)?.label ?? "Pilih materi program"}</span>
                     </SelectTrigger>
                     <SelectContent className="max-h-72">
                       {row.materialOptions.map((option) => (
@@ -194,20 +215,20 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="truncate text-[11px] text-muted-foreground">Program: {row.programName ?? "-"}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{materialMeta || `Program: ${row.programName ?? "-"}`}</p>
                 </div>
               </TableCell>
               <TableCell className="h-16">
-                <Input className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.technique} inputMode="numeric" onChange={(event) => update(rowIndex, { technique: Number(event.target.value) })} />
+                <Input disabled={!editable} className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.technique} inputMode="numeric" onChange={(event) => update(rowIndex, { technique: Number(event.target.value) })} />
               </TableCell>
               <TableCell className="h-16">
-                <Input className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.focus} inputMode="numeric" onChange={(event) => update(rowIndex, { focus: Number(event.target.value) })} />
+                <Input disabled={!editable} className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.focus} inputMode="numeric" onChange={(event) => update(rowIndex, { focus: Number(event.target.value) })} />
               </TableCell>
               <TableCell className="h-16">
-                <Input className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.stamina} inputMode="numeric" onChange={(event) => update(rowIndex, { stamina: Number(event.target.value) })} />
+                <Input disabled={!editable} className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.stamina} inputMode="numeric" onChange={(event) => update(rowIndex, { stamina: Number(event.target.value) })} />
               </TableCell>
               <TableCell className="h-16">
-                <Input className="bg-emerald-50/80 text-center font-semibold text-emerald-800 focus-visible:bg-white" value={row.grade} onChange={(event) => update(rowIndex, { grade: event.target.value })} />
+                <Input disabled={!editable} className="bg-emerald-50/80 text-center font-semibold text-emerald-800 focus-visible:bg-white" value={row.grade} onChange={(event) => update(rowIndex, { grade: event.target.value })} />
               </TableCell>
               <TableCell className="h-16 text-xs">
                 <div className="space-y-0.5">
@@ -217,14 +238,24 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
                 </div>
               </TableCell>
               <TableCell className="h-16">
-                <Textarea className="min-h-[52px] bg-slate-50/70 focus-visible:bg-white" value={row.note} placeholder="Catatan singkat" onChange={(event) => update(rowIndex, { note: event.target.value })} />
+                <Textarea disabled={!editable} className="min-h-[52px] bg-slate-50/70 focus-visible:bg-white" value={row.note} placeholder="Catatan singkat" onChange={(event) => update(rowIndex, { note: event.target.value })} />
+              </TableCell>
+              <TableCell className="h-16">
+                {row.scoreId ? (
+                  <Button variant="outline" size="sm" onClick={() => toggleEdit(row.studentId)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                    {editable ? "Batal" : "Edit Nilai"}
+                  </Button>
+                ) : (
+                  <span className="text-xs font-medium text-emerald-700">Baru</span>
+                )}
               </TableCell>
             </TableRow>
             );
           })}
           {rows.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="h-20 text-center text-xs text-muted-foreground">
+              <TableCell colSpan={10} className="h-20 text-center text-xs text-muted-foreground">
                 Tidak ada murid hadir pada tanggal ini.
               </TableCell>
             </TableRow>
