@@ -30,6 +30,10 @@ export async function getCurrentStudent() {
         include: { session: true },
         orderBy: { createdAt: "desc" }
       },
+      trainingSchedules: {
+        where: { deletedAt: null },
+        orderBy: [{ dayOfWeek: "asc" }, { date: "desc" }, { startTime: "asc" }]
+      },
       scores: {
         where: { deletedAt: null },
         orderBy: { scoredAt: "desc" }

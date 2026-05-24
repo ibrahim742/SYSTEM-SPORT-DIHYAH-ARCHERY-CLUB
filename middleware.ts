@@ -4,12 +4,14 @@ import { NextResponse, type NextRequest } from "next/server";
 const publicPrefixes = ["/login", "/lupa-password", "/reset-password", "/api/auth", "/api/landing", "/_next", "/favicon.ico"];
 const muridPrefixes = [
   "/portal",
+  "/portal/jadwal",
   "/profil",
   "/api/profile",
   "/api/uploads/profile",
   "/api/notifications",
   "/api/training-logs",
   "/api/students/me",
+  "/api/schedules",
   "/api/dashboard",
   "/api/reports"
 ];

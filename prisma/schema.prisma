@@ -393,7 +393,8 @@ model TrainingSchedule {
   studentId   String
   coachId     String?
   sessionId   String?
-  date        DateTime
+  date        DateTime?
+  dayOfWeek   Int?
   startTime   String
   endTime     String
   note        String?   @db.Text
@@ -406,7 +407,9 @@ model TrainingSchedule {
   session AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   @@unique([studentId, date, startTime])
+  @@unique([studentId, dayOfWeek, startTime])
   @@index([date])
+  @@index([dayOfWeek])
   @@index([coachId])
   @@index([sessionId])
 }

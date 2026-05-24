@@ -29,16 +29,18 @@ export async function PATCH(request: Request, { params }: Params) {
     const { id } = await params;
     const session = await requireSession();
     if (session.user.role === "MURID") throw new ApiError(403, "Murid tidak boleh mengubah jadwal");
-    await assertScheduleAccess(session, id);
+    const existing = await assertScheduleAccess(session, id);
 
     const payload = await readJson(request, trainingScheduleUpdateSchema);
-    if (payload.studentId) await assertTargetStudent(session, payload.studentId);
+    const targetStudent = payload.studentId ? await assertTargetStudent(session, payload.studentId) : existing.student;
 
     const schedule = await prisma.trainingSchedule.update({
       where: { id },
       data: {
         studentId: payload.studentId,
-        date: payload.date ? new Date(`${payload.date}T00:00:00.000Z`) : undefined,
+        coachId: session.user.role === "COACH" ? session.user.id : targetStudent.coachId ?? null,
+        date: "date" in payload ? (payload.date ? new Date(`${payload.date}T00:00:00.000Z`) : null) : undefined,
+        dayOfWeek: "dayOfWeek" in payload ? payload.dayOfWeek ?? null : undefined,
         startTime: payload.startTime,
         endTime: payload.endTime,
         note: payload.note

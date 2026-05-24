@@ -9,6 +9,7 @@ import {
   Activity,
   BarChart3,
   CalendarCheck,
+  CalendarClock,
   ChevronDown,
   ClipboardCheck,
   X,
@@ -45,7 +46,8 @@ const navGroups = [
     items: [
       { href: "/murid", label: "Data Murid", icon: Users },
       { href: "/program", label: "Program Latihan", icon: Target },
-      { href: "/assign", label: "Assign Program", icon: UserRoundCheck }
+      { href: "/assign", label: "Assign Program", icon: UserRoundCheck },
+      { href: "/jadwal", label: "Jadwal Latihan", icon: CalendarClock }
     ]
   },
   {
@@ -93,7 +95,8 @@ const muridGroups = [
     icon: Target,
     items: [
       { href: "/portal/program", label: "Program Saya", icon: Target },
-      { href: "/portal/progress", label: "Progress Saya", icon: TrendingUp }
+      { href: "/portal/progress", label: "Progress Saya", icon: TrendingUp },
+      { href: "/portal/jadwal", label: "Jadwal Saya", icon: CalendarClock }
     ]
   },
   {

@@ -16,6 +16,7 @@ const pageTitles: Record<string, string> = {
   "/murid": "Data Murid",
   "/program": "Program Latihan",
   "/assign": "Assign Program",
+  "/jadwal": "Jadwal Latihan",
   "/absensi": "Absensi",
   "/penilaian": "Penilaian Coach",
   "/monitoring": "Monitoring Progress",
@@ -28,6 +29,7 @@ const pageTitles: Record<string, string> = {
   "/portal": "Portal Murid",
   "/portal/program": "Program Saya",
   "/portal/progress": "Progress Saya",
+  "/portal/jadwal": "Jadwal Saya",
   "/portal/absensi": "Absensi Saya",
   "/portal/nilai": "Nilai Coach",
   "/portal/log": "Log Latihan"

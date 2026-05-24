@@ -2,7 +2,7 @@
 
 import type { ElementType } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileClock, HeartPulse, LogOut, Pencil, Plus, Save, Search, Trash2, X } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileClock, HeartPulse, LogOut, Save, Search, X } from "lucide-react";
 
 import { BadgeStatus } from "@/components/badge-status";
 import { ProgressBar } from "@/components/progress-bar";
@@ -25,7 +25,8 @@ type StudentApiRow = {
 type ScheduleApiRow = {
   id: string;
   studentId: string;
-  date: string;
+  date: string | null;
+  dayOfWeek: number | null;
   startTime: string;
   endTime: string;
   note: string | null;
@@ -82,6 +83,11 @@ function dateKey(value: string) {
   return value.slice(0, 10);
 }
 
+function dayOfWeekFromDate(date: string) {
+  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+  return day === 0 ? 7 : day;
+}
+
 function currentTime() {
   return new Intl.DateTimeFormat("id-ID", {
     hour: "2-digit",
@@ -122,9 +128,10 @@ function toApiStatus(status: AttendanceStatus): ApiAttendanceStatus {
 
 function buildRows(schedules: ScheduleApiRow[], session: AttendanceSessionApi | undefined, selectedDate: string): AttendanceRow[] {
   const recordsByStudentId = new Map(session?.records.map((record) => [record.studentId, record]));
+  const selectedDay = dayOfWeekFromDate(selectedDate);
 
   return schedules
-    .filter((schedule) => dateKey(schedule.date) === selectedDate && schedule.student.status !== "NONAKTIF")
+    .filter((schedule) => ((schedule.date && dateKey(schedule.date) === selectedDate) || (!schedule.date && schedule.dayOfWeek === selectedDay)) && schedule.student.status !== "NONAKTIF")
     .map((schedule) => {
       const record = recordsByStudentId.get(schedule.studentId);
 
@@ -153,9 +160,6 @@ export default function AttendancePage() {
   const [sessions, setSessions] = useState<AttendanceSessionApi[]>([]);
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [selectedDate, setSelectedDate] = useState("");
-  const [scheduleForm, setScheduleForm] = useState({ studentId: "", date: "", startTime: "15:30", endTime: "17:30", note: "" });
-  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
-  const [scheduleSaving, setScheduleSaving] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<AttendanceStatus | "semua">("semua");
   const [page, setPage] = useState(1);
@@ -192,7 +196,6 @@ export default function AttendancePage() {
       setStudents(nextStudents);
       setSchedules(nextSchedules);
       setSelectedDate(nextDate);
-      setScheduleForm((current) => ({ ...current, studentId: nextStudents[0]?.id ?? "", date: nextDate }));
       setLoading(false);
     }
 
@@ -204,7 +207,6 @@ export default function AttendancePage() {
     const session = findSessionByDate(sessions, selectedDate);
     setSessionId(session?.id ?? null);
     setRows(buildRows(schedules, session, selectedDate));
-    setScheduleForm((current) => ({ ...current, date: selectedDate || current.date }));
   }, [selectedDate, schedules, sessions]);
 
   const summary = useMemo(() => {
@@ -280,11 +282,6 @@ export default function AttendancePage() {
   const visibleRecapRows = useMemo(() => recapRows.slice((recapPage - 1) * PAGE_SIZE, recapPage * PAGE_SIZE), [recapPage, recapRows]);
   const firstVisibleRecap = recapRows.length ? (recapPage - 1) * PAGE_SIZE + 1 : 0;
   const lastVisibleRecap = Math.min(recapPage * PAGE_SIZE, recapRows.length);
-  const selectedDateSchedules = useMemo(
-    () => schedules.filter((schedule) => dateKey(schedule.date) === selectedDate).sort((a, b) => `${a.startTime} ${a.student.name}`.localeCompare(`${b.startTime} ${b.student.name}`)),
-    [schedules, selectedDate]
-  );
-
   useEffect(() => {
     setRecapPage((current) => Math.min(current, recapPages));
   }, [recapPages]);
@@ -346,64 +343,6 @@ export default function AttendancePage() {
     });
   }
 
-  async function saveSchedule() {
-    if (!scheduleForm.studentId || !scheduleForm.date || !scheduleForm.startTime || !scheduleForm.endTime) {
-      setMessage("Lengkapi murid, tanggal, jam masuk, dan jam pulang jadwal.");
-      return;
-    }
-
-    setScheduleSaving(true);
-    setMessage("");
-    const response = await fetch(editingScheduleId ? `/api/schedules/${editingScheduleId}` : "/api/schedules", {
-      method: editingScheduleId ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(scheduleForm)
-    });
-    setScheduleSaving(false);
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "Gagal menyimpan jadwal" }));
-      setMessage(error.error ?? "Gagal menyimpan jadwal");
-      return;
-    }
-
-    const payload = (await response.json()) as { data: ScheduleApiRow };
-    setSchedules((current) => [payload.data, ...current.filter((schedule) => schedule.id !== payload.data.id)].sort((a, b) => `${dateKey(b.date)} ${b.startTime}`.localeCompare(`${dateKey(a.date)} ${a.startTime}`)));
-    setSelectedDate(dateKey(payload.data.date));
-    setEditingScheduleId(null);
-    setMessage("Jadwal latihan tersimpan dan tersinkron ke absensi.");
-  }
-
-  function editSchedule(schedule: ScheduleApiRow) {
-    setEditingScheduleId(schedule.id);
-    setScheduleForm({
-      studentId: schedule.studentId,
-      date: dateKey(schedule.date),
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
-      note: schedule.note ?? ""
-    });
-  }
-
-  function cancelEditSchedule() {
-    setEditingScheduleId(null);
-    setScheduleForm((current) => ({ ...current, studentId: students[0]?.id ?? "", date: selectedDate, startTime: "15:30", endTime: "17:30", note: "" }));
-  }
-
-  async function deleteSchedule(scheduleId: string) {
-    setMessage("");
-    const response = await fetch(`/api/schedules/${scheduleId}`, { method: "DELETE" });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: "Gagal menghapus jadwal" }));
-      setMessage(error.error ?? "Gagal menghapus jadwal");
-      return;
-    }
-
-    setSchedules((current) => current.filter((schedule) => schedule.id !== scheduleId));
-    setRows((current) => current.filter((row) => row.scheduleId !== scheduleId));
-    setMessage("Jadwal latihan dihapus.");
-  }
-
   async function saveAttendance() {
     if (!selectedDate) return;
     const filledRows = rows.filter((row) => row.status !== "Belum");
@@ -444,84 +383,6 @@ export default function AttendancePage() {
 
   return (
     <div className="space-y-3">
-      <section className="rounded-md border bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-          <div>
-            <h2 className="text-sm font-semibold">Jadwal Latihan</h2>
-            <p className="text-xs text-muted-foreground">Buat jadwal murid, lalu absensi hanya menampilkan murid sesuai tanggal jadwal.</p>
-          </div>
-        </div>
-        <div className="grid gap-2 border-b bg-slate-50/60 px-3 py-2 lg:grid-cols-[minmax(180px,1fr)_140px_120px_120px_minmax(180px,1fr)_auto]">
-          <select className="h-10 rounded-md border bg-white px-2 text-sm" value={scheduleForm.studentId} onChange={(event) => setScheduleForm({ ...scheduleForm, studentId: event.target.value })}>
-            <option value="">Pilih murid</option>
-            {students
-              .filter((student) => student.status !== "NONAKTIF")
-              .map((student) => (
-                <option key={student.id} value={student.id}>
-                  {student.name} - {student.club.name}
-                </option>
-              ))}
-          </select>
-          <Input type="date" value={scheduleForm.date} onChange={(event) => setScheduleForm({ ...scheduleForm, date: event.target.value })} />
-          <Input type="time" value={scheduleForm.startTime} onChange={(event) => setScheduleForm({ ...scheduleForm, startTime: event.target.value })} />
-          <Input type="time" value={scheduleForm.endTime} onChange={(event) => setScheduleForm({ ...scheduleForm, endTime: event.target.value })} />
-          <Input placeholder="Catatan jadwal" value={scheduleForm.note} onChange={(event) => setScheduleForm({ ...scheduleForm, note: event.target.value })} />
-          <Button size="sm" onClick={saveSchedule} disabled={scheduleSaving || loading}>
-            <Plus className="h-3.5 w-3.5" />
-            {scheduleSaving ? "Menyimpan..." : editingScheduleId ? "Simpan Jadwal" : "Tambah Jadwal"}
-          </Button>
-          {editingScheduleId ? (
-            <Button variant="outline" size="sm" onClick={cancelEditSchedule}>
-              Batal
-            </Button>
-          ) : null}
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-              <TableHead>Murid</TableHead>
-              <TableHead>Tanggal</TableHead>
-              <TableHead>Jam Masuk</TableHead>
-              <TableHead>Jam Pulang</TableHead>
-              <TableHead>Coach</TableHead>
-              <TableHead>Catatan</TableHead>
-              <TableHead className="w-36">Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {selectedDateSchedules.map((schedule) => (
-              <TableRow key={schedule.id}>
-                <TableCell className="h-10 font-medium">{schedule.student.name}</TableCell>
-                <TableCell className="h-10">{dateKey(schedule.date)}</TableCell>
-                <TableCell className="h-10">{schedule.startTime}</TableCell>
-                <TableCell className="h-10">{schedule.endTime}</TableCell>
-                <TableCell className="h-10">{schedule.coach?.name ?? schedule.coach?.username ?? schedule.student.coach?.name ?? schedule.student.coach?.username ?? "-"}</TableCell>
-                <TableCell className="h-10">{schedule.note ?? "-"}</TableCell>
-                <TableCell className="h-10">
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => editSchedule(schedule)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                      Edit
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => deleteSchedule(schedule.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Hapus
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {!loading && selectedDateSchedules.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-16 text-center text-xs text-muted-foreground">
-                  Belum ada jadwal latihan pada tanggal ini.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
-      </section>
-
       <section className="rounded-md border bg-background">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
           <div>
@@ -586,7 +447,7 @@ export default function AttendancePage() {
           </TableHeader>
           <TableBody>
             {visibleRows.map((row) => (
-              <TableRow key={`${row.studentId}-${row.date}`} className={cn("hover:bg-slate-50/80", rowToneClass(row.status))}>
+              <TableRow key={row.scheduleId} className={cn("hover:bg-slate-50/80", rowToneClass(row.status))}>
                 <TableCell className="h-12 whitespace-nowrap font-medium">{row.name}</TableCell>
                 <TableCell className="h-12 whitespace-nowrap text-slate-600">{row.date}</TableCell>
                 <TableCell className="h-12 whitespace-nowrap text-slate-600">{row.scheduleTime}</TableCell>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarCheck2, ClipboardCheck, FileText, Target, TrendingUp } from "lucide-react";
+import { CalendarCheck2, CalendarClock, ClipboardCheck, FileText, Target, TrendingUp } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { ProgressBar } from "@/components/progress-bar";
@@ -23,7 +23,7 @@ export default async function StudentPortalPage() {
     <div className="space-y-3">
       <StudentProfileHeader student={student} />
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <section className="rounded-md border bg-background px-3 py-2">
           <p className="text-[11px] font-medium uppercase text-muted-foreground">Program Aktif</p>
           <p className="mt-1 truncate text-sm font-semibold">{currentProgram?.name ?? "Belum ada"}</p>
@@ -43,6 +43,16 @@ export default async function StudentPortalPage() {
             <Link href="/portal/progress">
               <TrendingUp className="h-3.5 w-3.5" />
               Detail Progress
+            </Link>
+          </Button>
+        </section>
+        <section className="rounded-md border bg-background px-3 py-2">
+          <p className="text-[11px] font-medium uppercase text-muted-foreground">Jadwal</p>
+          <p className="mt-1 text-sm font-semibold">{student.trainingSchedules.filter((schedule) => !schedule.date && schedule.dayOfWeek).length} hari latihan</p>
+          <Button asChild variant="outline" size="sm" className="mt-3 w-full">
+            <Link href="/portal/jadwal">
+              <CalendarClock className="h-3.5 w-3.5" />
+              Jadwal Saya
             </Link>
           </Button>
         </section>

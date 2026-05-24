@@ -255,18 +255,28 @@ export const attendanceSessionSchema = z.object({
 
 const trainingScheduleBaseSchema = z.object({
   studentId: idSchema,
-  date: dateStringSchema,
+  date: dateStringSchema.optional().nullable(),
+  dayOfWeek: z.coerce.number().int().min(1).max(7).optional().nullable(),
   startTime: timeStringSchema,
   endTime: timeStringSchema,
   note: nullableTextSchema
 });
 
-export const trainingScheduleSchema = trainingScheduleBaseSchema.refine((payload) => payload.endTime > payload.startTime, {
+export const trainingScheduleSchema = trainingScheduleBaseSchema.refine((payload) => payload.date || payload.dayOfWeek, {
+  path: ["dayOfWeek"],
+  message: "Pilih tanggal atau hari jadwal"
+}).refine((payload) => payload.endTime > payload.startTime, {
     path: ["endTime"],
     message: "Jam pulang harus setelah jam masuk"
   });
 
 export const trainingScheduleUpdateSchema = trainingScheduleBaseSchema.partial().refine((payload) => {
+  if (!("date" in payload) && !("dayOfWeek" in payload)) return true;
+  return Boolean(payload.date || payload.dayOfWeek);
+}, {
+  path: ["dayOfWeek"],
+  message: "Pilih tanggal atau hari jadwal"
+}).refine((payload) => {
   if (!payload.startTime || !payload.endTime) return true;
   return payload.endTime > payload.startTime;
 }, {

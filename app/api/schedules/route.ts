@@ -10,6 +10,11 @@ function dayRange(date: string) {
   return { start, end };
 }
 
+function dayOfWeekFromDate(date: string) {
+  const day = new Date(`${date}T00:00:00.000Z`).getUTCDay();
+  return day === 0 ? 7 : day;
+}
+
 async function assertManageableStudent(session: Awaited<ReturnType<typeof requireSession>>, studentId: string) {
   const student = await prisma.student.findFirst({ where: { id: studentId, deletedAt: null } });
   if (!student) throw new ApiError(404, "Murid tidak ditemukan");
@@ -21,21 +26,29 @@ async function assertManageableStudent(session: Awaited<ReturnType<typeof requir
 export async function GET(request: Request) {
   try {
     const session = await requireSession();
-    if (session.user.role === "MURID") throw new ApiError(403, "Murid tidak boleh mengelola jadwal");
 
-    const date = new URL(request.url).searchParams.get("date");
+    const searchParams = new URL(request.url).searchParams;
+    const date = searchParams.get("date");
+    const studentId = searchParams.get("studentId");
     const range = date ? dayRange(date) : null;
+    const weekDay = date ? dayOfWeekFromDate(date) : null;
     const schedules = await prisma.trainingSchedule.findMany({
       where: {
         deletedAt: null,
-        date: range ? { gte: range.start, lt: range.end } : undefined,
+        studentId: studentId ?? undefined,
+        OR: range
+          ? [
+              { date: { gte: range.start, lt: range.end } },
+              { date: null, dayOfWeek: weekDay }
+            ]
+          : undefined,
         student: scopedStudentWhere(session)
       },
       include: {
         student: { include: { club: true, coach: { select: { id: true, name: true, username: true } } } },
         coach: { select: { id: true, name: true, username: true } }
       },
-      orderBy: [{ date: "desc" }, { startTime: "asc" }, { student: { name: "asc" } }]
+      orderBy: [{ dayOfWeek: "asc" }, { date: "desc" }, { startTime: "asc" }, { student: { name: "asc" } }]
     });
 
     return ok(schedules);
@@ -50,13 +63,14 @@ export async function POST(request: Request) {
     if (session.user.role === "MURID") throw new ApiError(403, "Murid tidak boleh membuat jadwal");
 
     const payload = await readJson(request, trainingScheduleSchema);
-    await assertManageableStudent(session, payload.studentId);
+    const student = await assertManageableStudent(session, payload.studentId);
 
     const schedule = await prisma.trainingSchedule.create({
       data: {
         studentId: payload.studentId,
-        coachId: session.user.role === "COACH" ? session.user.id : null,
-        date: new Date(`${payload.date}T00:00:00.000Z`),
+        coachId: session.user.role === "COACH" ? session.user.id : student.coachId ?? null,
+        date: payload.date ? new Date(`${payload.date}T00:00:00.000Z`) : null,
+        dayOfWeek: payload.dayOfWeek ?? null,
         startTime: payload.startTime,
         endTime: payload.endTime,
         note: payload.note
