@@ -12,27 +12,12 @@ async function validateAttendanceRecords(session: Awaited<ReturnType<typeof requ
   const studentIds = records.map((record) => record.studentId);
   if (new Set(studentIds).size !== studentIds.length) throw new ApiError(422, "Data absensi berisi murid duplikat");
 
-  const [students, expectedStudents] = await Promise.all([
-    prisma.student.findMany({ where: { id: { in: studentIds }, deletedAt: null } }),
-    prisma.student.findMany({
-      where: {
-        ...scopedStudentWhere(session),
-        status: { in: ["AKTIF", "PEMULIHAN"] }
-      },
-      select: { id: true, name: true }
-    })
-  ]);
+  const students = await prisma.student.findMany({ where: { id: { in: studentIds }, deletedAt: null } });
 
   if (students.length !== studentIds.length) throw new ApiError(422, "Ada murid yang tidak valid dalam absensi");
 
   const denied = students.some((student) => !canManageStudent(session, student.clubId, student.coachId));
   if (denied) throw new ApiError(403, "Ada murid di luar scope club coach");
-
-  const submittedIds = new Set(studentIds);
-  const missingStudents = expectedStudents.filter((student) => !submittedIds.has(student.id));
-  if (missingStudents.length) {
-    throw new ApiError(422, `Absensi belum lengkap: ${missingStudents.map((student) => student.name).join(", ")}`);
-  }
 }
 
 export async function PATCH(request: Request, { params }: Params) {
@@ -58,28 +43,56 @@ export async function PATCH(request: Request, { params }: Params) {
     const attendance = await prisma.$transaction(async (tx) => {
       if (payload.records) {
         await validateAttendanceRecords(session, payload.records);
-        await tx.attendanceRecord.deleteMany({ where: { sessionId: id } });
       }
 
-      return tx.attendanceSession.update({
+      const sessionRow = await tx.attendanceSession.update({
         where: { id },
         data: {
           date: payload.date ? new Date(payload.date) : undefined,
           title: payload.title,
-          note: payload.note,
-          records: payload.records
-            ? {
-                create: payload.records.map((record) => ({
-                  studentId: record.studentId,
-                  status: record.status,
-                  checkIn: record.checkIn,
-                  checkOut: record.checkOut,
-                  note: record.note
-                }))
-              }
-            : undefined
-        },
-        include: { records: { include: { student: true } } }
+          note: payload.note
+        }
+      });
+
+      for (const record of payload.records ?? []) {
+        await tx.attendanceRecord.upsert({
+          where: {
+            sessionId_studentId: {
+              sessionId: id,
+              studentId: record.studentId
+            }
+          },
+          update: {
+            status: record.status,
+            checkIn: record.checkIn,
+            checkOut: record.checkOut,
+            note: record.note
+          },
+          create: {
+            sessionId: id,
+            studentId: record.studentId,
+            status: record.status,
+            checkIn: record.checkIn,
+            checkOut: record.checkOut,
+            note: record.note
+          }
+        });
+      }
+
+      if (payload.records && payload.date) {
+        await tx.trainingSchedule.updateMany({
+          where: {
+            studentId: { in: payload.records.map((record) => record.studentId) },
+            date: new Date(payload.date),
+            deletedAt: null
+          },
+          data: { sessionId: id }
+        });
+      }
+
+      return tx.attendanceSession.findUniqueOrThrow({
+        where: { id: sessionRow.id },
+        include: { records: { where: { student: scopedStudentWhere(session) }, include: { student: true } } }
       });
     });
     await notifyStudents(

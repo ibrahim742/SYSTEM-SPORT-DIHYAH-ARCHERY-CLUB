@@ -85,6 +85,7 @@ model User {
   studentProfile Student?
   auditLogs      AuditLog[]
   createdScores  CoachScore[]  @relation("CoachScores")
+  createdSchedules TrainingSchedule[] @relation("CoachSchedules")
   coachedStudents Student[]      @relation("AssignedCoach")
   createdPrograms Program[]      @relation("ProgramCreator")
   notifications  Notification[] @relation("UserNotifications")
@@ -299,6 +300,7 @@ model Student {
   sport             Sport               @relation(fields: [sportId], references: [id])
   assignments       ProgramAssignment[]
   attendanceRecords AttendanceRecord[]
+  trainingSchedules  TrainingSchedule[]
   scores            CoachScore[]
   trainingLogs      TrainingLog[]
 
@@ -381,8 +383,32 @@ model AttendanceSession {
   deletedAt DateTime?
 
   records AttendanceRecord[]
+  schedules TrainingSchedule[]
 
   @@unique([date, title])
+}
+
+model TrainingSchedule {
+  id          String    @id @default(cuid())
+  studentId   String
+  coachId     String?
+  sessionId   String?
+  date        DateTime
+  startTime   String
+  endTime     String
+  note        String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  student Student @relation(fields: [studentId], references: [id])
+  coach   User?   @relation("CoachSchedules", fields: [coachId], references: [id], onDelete: SetNull)
+  session AttendanceSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, date, startTime])
+  @@index([date])
+  @@index([coachId])
+  @@index([sessionId])
 }
 
 model AttendanceRecord {

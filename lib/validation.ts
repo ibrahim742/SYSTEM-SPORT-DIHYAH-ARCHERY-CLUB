@@ -253,6 +253,27 @@ export const attendanceSessionSchema = z.object({
     .optional()
 });
 
+const trainingScheduleBaseSchema = z.object({
+  studentId: idSchema,
+  date: dateStringSchema,
+  startTime: timeStringSchema,
+  endTime: timeStringSchema,
+  note: nullableTextSchema
+});
+
+export const trainingScheduleSchema = trainingScheduleBaseSchema.refine((payload) => payload.endTime > payload.startTime, {
+    path: ["endTime"],
+    message: "Jam pulang harus setelah jam masuk"
+  });
+
+export const trainingScheduleUpdateSchema = trainingScheduleBaseSchema.partial().refine((payload) => {
+  if (!payload.startTime || !payload.endTime) return true;
+  return payload.endTime > payload.startTime;
+}, {
+  path: ["endTime"],
+  message: "Jam pulang harus setelah jam masuk"
+});
+
 export const scoreSchema = z.object({
   studentId: idSchema,
   material: requiredTextSchema.max(120),

@@ -1,4 +1,4 @@
-import { ApiError, created, handleApiError, ok, readJson, requireSession } from "@/lib/api";
+import { ApiError, handleApiError, ok, readJson, requireSession } from "@/lib/api";
 import { notifyStudents } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 import { canManageStudent, scopedStudentWhere } from "@/lib/rbac";
@@ -22,27 +22,12 @@ async function validateAttendanceRecords(session: Awaited<ReturnType<typeof requ
   const studentIds = records.map((record) => record.studentId);
   if (new Set(studentIds).size !== studentIds.length) throw new ApiError(422, "Data absensi berisi murid duplikat");
 
-  const [students, expectedStudents] = await Promise.all([
-    prisma.student.findMany({ where: { id: { in: studentIds }, deletedAt: null } }),
-    prisma.student.findMany({
-      where: {
-        ...scopedStudentWhere(session),
-        status: { in: ["AKTIF", "PEMULIHAN"] }
-      },
-      select: { id: true, name: true }
-    })
-  ]);
+  const students = await prisma.student.findMany({ where: { id: { in: studentIds }, deletedAt: null } });
 
   if (students.length !== studentIds.length) throw new ApiError(422, "Ada murid yang tidak valid dalam absensi");
 
   const denied = students.some((student) => !canManageStudent(session, student.clubId, student.coachId));
   if (denied) throw new ApiError(403, "Ada murid di luar scope club coach");
-
-  const submittedIds = new Set(studentIds);
-  const missingStudents = expectedStudents.filter((student) => !submittedIds.has(student.id));
-  if (missingStudents.length) {
-    throw new ApiError(422, `Absensi belum lengkap: ${missingStudents.map((student) => student.name).join(", ")}`);
-  }
 }
 
 export async function GET(request: Request) {
@@ -85,24 +70,72 @@ export async function POST(request: Request) {
     const payload = await readJson(request, attendanceSessionSchema);
     await validateAttendanceRecords(session, payload.records ?? []);
 
-    const attendance = await prisma.attendanceSession.create({
-      data: {
-        date: new Date(payload.date),
-        title: payload.title,
-        note: payload.note,
-        records: payload.records?.length
-          ? {
-              create: payload.records.map((record) => ({
-                studentId: record.studentId,
-                status: record.status,
-                checkIn: record.checkIn,
-                checkOut: record.checkOut,
-                note: record.note
-              }))
+    let createdNewSession = false;
+    const attendance = await prisma.$transaction(async (tx) => {
+      const existing = await tx.attendanceSession.findFirst({
+        where: {
+          date: new Date(payload.date),
+          title: payload.title,
+          deletedAt: null
+        },
+        select: { id: true }
+      });
+      const sessionRow = existing
+        ? await tx.attendanceSession.update({
+            where: { id: existing.id },
+            data: { note: payload.note }
+          })
+        : await tx.attendanceSession
+            .create({
+              data: {
+                date: new Date(payload.date),
+                title: payload.title,
+                note: payload.note
+              }
+            })
+            .then((createdSession) => {
+              createdNewSession = true;
+              return createdSession;
+            });
+
+      for (const record of payload.records ?? []) {
+        await tx.attendanceRecord.upsert({
+          where: {
+            sessionId_studentId: {
+              sessionId: sessionRow.id,
+              studentId: record.studentId
             }
-          : undefined
-      },
-      include: { records: { include: { student: true } } }
+          },
+          update: {
+            status: record.status,
+            checkIn: record.checkIn,
+            checkOut: record.checkOut,
+            note: record.note
+          },
+          create: {
+            sessionId: sessionRow.id,
+            studentId: record.studentId,
+            status: record.status,
+            checkIn: record.checkIn,
+            checkOut: record.checkOut,
+            note: record.note
+          }
+        });
+      }
+
+      await tx.trainingSchedule.updateMany({
+        where: {
+          studentId: { in: payload.records?.map((record) => record.studentId) ?? [] },
+          date: new Date(payload.date),
+          deletedAt: null
+        },
+        data: { sessionId: sessionRow.id }
+      });
+
+      return tx.attendanceSession.findUniqueOrThrow({
+        where: { id: sessionRow.id },
+        include: { records: { where: { student: scopedStudentWhere(session) }, include: { student: true } } }
+      });
     });
     await notifyStudents(
       prisma,
@@ -115,7 +148,7 @@ export async function POST(request: Request) {
       }
     );
 
-    return created(attendance);
+    return ok(attendance, createdNewSession ? 201 : 200);
   } catch (error) {
     return handleApiError(error);
   }
