@@ -23,19 +23,21 @@ export default async function StudentScorePage() {
     <div className="space-y-3">
       <StudentProfileHeader student={student} />
       <SectionBox title="Nilai Coach" description="Evaluasi teknik, fokus, stamina, dan catatan coach">
-        <div className="grid gap-3 border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 md:grid-cols-[1.2fr_170px_100px_100px_100px_84px]">
+        <div className="grid gap-3 border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 md:grid-cols-[1.2fr_170px_1fr_84px]">
           <span>Judul Materi & Catatan Coach</span>
           <span>Dinilai Pada</span>
-          <span>Teknik</span>
-          <span>Fokus</span>
-          <span>Stamina</span>
+          <div className="grid grid-cols-3 gap-3">
+            <span>Teknik</span>
+            <span>Fokus</span>
+            <span>Stamina</span>
+          </div>
           <span>Nilai Akhir</span>
         </div>
         <PaginatedList className="divide-y">
           {student.scores.map((score) => {
             const history = formatScoreHistory(score.scoredAt);
             return (
-              <div key={score.id} className="grid gap-3 py-3 text-xs md:grid-cols-[1.2fr_170px_100px_100px_100px_84px] md:items-start">
+              <div key={score.id} className="grid gap-3 py-3 text-xs md:grid-cols-[1.2fr_170px_1fr_84px] md:items-start">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{score.material}</p>
                   <p className="mt-1 truncate text-muted-foreground">{score.note ?? "Tanpa catatan"}</p>
@@ -45,9 +47,11 @@ export default async function StudentScorePage() {
                   <p className="text-muted-foreground">{history.date}</p>
                   <p className="tabular-nums text-muted-foreground">{history.time}</p>
                 </div>
-                <div className="font-medium">{score.technique}</div>
-                <div className="font-medium">{score.focus}</div>
-                <div className="font-medium">{score.stamina}</div>
+                <div className="grid grid-cols-3 gap-3 font-medium">
+                  <span>{score.technique}</span>
+                  <span>{score.focus}</span>
+                  <span>{score.stamina}</span>
+                </div>
                 <div className="md:justify-self-end">
                   <Badge variant="green">{score.grade}</Badge>
                 </div>
