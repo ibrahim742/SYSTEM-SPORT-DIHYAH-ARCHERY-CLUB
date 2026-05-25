@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ProfileForm } from "@/components/profile-form";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveExistingUploadUrl } from "@/lib/upload-path";
 
 function formatDate(value?: Date | null) {
   return value ? value.toISOString().slice(0, 10) : "";
@@ -44,7 +45,7 @@ export default async function ProfilePage() {
         id: user.id,
         name: user.name,
         email: user.email,
-        image: user.image,
+        image: resolveExistingUploadUrl(user.image),
         username: user.username,
         role: user.role,
         coachProfile: user.coachProfile
@@ -53,7 +54,7 @@ export default async function ProfilePage() {
               gender: user.coachProfile.gender,
               birthDate: formatDate(user.coachProfile.birthDate),
               address: user.coachProfile.address ?? "",
-              photoUrl: user.coachProfile.photoUrl ?? "",
+              photoUrl: resolveExistingUploadUrl(user.coachProfile.photoUrl) ?? "",
               experienceYears: user.coachProfile.experienceYears,
               certification: user.coachProfile.certification ?? "",
               bio: user.coachProfile.bio ?? "",
@@ -66,7 +67,7 @@ export default async function ProfilePage() {
               phone: user.studentProfile.phone,
               birthDate: formatDate(user.studentProfile.birthDate),
               address: user.studentProfile.address ?? "",
-              photoUrl: user.studentProfile.photoUrl ?? "",
+              photoUrl: resolveExistingUploadUrl(user.studentProfile.photoUrl) ?? "",
               clubName: user.studentProfile.club.name,
               sportName: user.studentProfile.sport.name,
               branch: user.studentProfile.branch,

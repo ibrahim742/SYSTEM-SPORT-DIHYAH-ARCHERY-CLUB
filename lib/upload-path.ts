@@ -21,3 +21,11 @@ export function resolveUploadsDir() {
 
   return candidates[0];
 }
+
+export function resolveExistingUploadUrl(url: string | null | undefined) {
+  if (!url || !url.startsWith("/uploads/")) return url ?? null;
+
+  const fileName = path.basename(url);
+  const filePath = path.join(resolveUploadsDir(), fileName);
+  return existsSync(filePath) ? url : null;
+}

@@ -16,29 +16,21 @@ export default async function StudentAttendancePage() {
     <div className="space-y-3">
       <StudentProfileHeader student={student} />
       <SectionBox title="Absensi Saya" description="Riwayat status kehadiran latihan">
+        <div className="grid gap-3 border-b px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 md:grid-cols-[140px_1fr_100px_100px_120px]">
+          <span>Tanggal</span>
+          <span>Judul Sesi</span>
+          <span>Jam Masuk</span>
+          <span>Jam Pulang</span>
+          <span>Status</span>
+        </div>
         <PaginatedList className="divide-y">
           {student.attendanceRecords.map((record) => (
             <div key={record.id} className="grid gap-3 py-3 text-xs md:grid-cols-[140px_1fr_100px_100px_120px] md:items-center">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Tanggal</p>
-                <p className="font-medium">{record.session.date.toISOString().slice(0, 10)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Judul Sesi</p>
-                <p className="text-muted-foreground">{record.session.title}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Jam Masuk</p>
-                <p>{record.checkIn ?? "-"}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Jam Pulang</p>
-                <p>{record.checkOut ?? "-"}</p>
-              </div>
-              <div>
-                <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</p>
-                <BadgeStatus status={attendanceStatusLabel(record.status)} />
-              </div>
+              <span className="font-medium">{record.session.date.toISOString().slice(0, 10)}</span>
+              <span className="text-muted-foreground">{record.session.title}</span>
+              <span>{record.checkIn ?? "-"}</span>
+              <span>{record.checkOut ?? "-"}</span>
+              <BadgeStatus status={attendanceStatusLabel(record.status)} />
             </div>
           ))}
         </PaginatedList>

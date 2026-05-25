@@ -173,7 +173,6 @@ export function ProfileForm({ profile }: { profile: ProfileData }) {
                 className="h-full w-full object-cover"
                 onError={() => {
                   setImageFailed(true);
-                  setMessage((current) => current ?? { type: "error", text: "Foto profil tidak bisa dimuat. Silakan unggah ulang lalu simpan profil." });
                 }}
               />
             ) : (
