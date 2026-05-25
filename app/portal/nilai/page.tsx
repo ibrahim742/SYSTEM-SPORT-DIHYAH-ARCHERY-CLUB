@@ -27,20 +27,37 @@ export default async function StudentScorePage() {
           {student.scores.map((score) => {
             const history = formatScoreHistory(score.scoredAt);
             return (
-              <div key={score.id} className="grid gap-2 py-2 text-xs md:grid-cols-[1fr_130px_80px_80px_80px_80px] md:items-center">
+              <div key={score.id} className="grid gap-3 py-3 text-xs md:grid-cols-[1.2fr_170px_1fr_84px] md:items-start">
                 <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Judul Materi</p>
                   <p className="truncate font-medium">{score.material}</p>
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Catatan Coach</p>
                   <p className="truncate text-muted-foreground">{score.note ?? "Tanpa catatan"}</p>
                 </div>
-                <div>
+                <div className="space-y-0.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Dinilai Pada</p>
                   <p className="font-medium">{history.day}</p>
                   <p className="text-muted-foreground">{history.date}</p>
                   <p className="tabular-nums text-muted-foreground">{history.time}</p>
                 </div>
-                <span>Teknik {score.technique}</span>
-                <span>Fokus {score.focus}</span>
-                <span>Stamina {score.stamina}</span>
-                <Badge variant="green">{score.grade}</Badge>
+                <div className="grid gap-1 sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Teknik</p>
+                    <p className="font-medium">{score.technique}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Fokus</p>
+                    <p className="font-medium">{score.focus}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Stamina</p>
+                    <p className="font-medium">{score.stamina}</p>
+                  </div>
+                </div>
+                <div className="md:justify-self-end">
+                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Nilai Akhir</p>
+                  <Badge variant="green">{score.grade}</Badge>
+                </div>
               </div>
             );
           })}

@@ -26,9 +26,9 @@ type ScoreRow = {
     day: string;
   }[];
   programName: string | null;
-  technique: number;
-  focus: number;
-  stamina: number;
+  technique: string;
+  focus: string;
+  stamina: string;
   grade: string;
   note: string;
   scoreId: string | null;
@@ -48,6 +48,18 @@ function formatScoreHistory(value: string | null) {
 
 function materialSelectValue(row: ScoreRow) {
   return row.materialOptions.find((option) => option.label === row.material)?.id ?? "";
+}
+
+function missingFields(row: ScoreRow) {
+  const missing: string[] = [];
+
+  if (!row.material.trim()) missing.push("materi");
+  if (!row.technique.trim()) missing.push("teknik");
+  if (!row.focus.trim()) missing.push("fokus");
+  if (!row.stamina.trim()) missing.push("stamina");
+  if (!row.grade.trim()) missing.push("nilai");
+
+  return missing;
 }
 
 export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: ScoreRow[]; selectedDate: string }) {
@@ -103,6 +115,13 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
       return;
     }
 
+    const invalidRow = rowsToSave.find((row) => missingFields(row).length > 0);
+    if (invalidRow) {
+      const fields = missingFields(invalidRow).join(", ");
+      setMessage(`Data ${invalidRow.name} belum lengkap. Wajib isi: ${fields}.`);
+      return;
+    }
+
     setSaving(true);
     setMessage("");
     const responses = await Promise.all(
@@ -114,9 +133,9 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
             studentId: row.studentId,
             material: row.material,
             scoredDate: date,
-            technique: row.technique,
-            focus: row.focus,
-            stamina: row.stamina,
+            technique: Number(row.technique),
+            focus: Number(row.focus),
+            stamina: Number(row.stamina),
             grade: row.grade,
             note: row.note
           })
@@ -219,16 +238,16 @@ export function CoachScoringTable({ rows: initialRows, selectedDate }: { rows: S
                 </div>
               </TableCell>
               <TableCell className="h-16">
-                <Input disabled={!editable} className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.technique} inputMode="numeric" onChange={(event) => update(rowIndex, { technique: Number(event.target.value) })} />
+                <Input disabled={!editable} className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.technique} inputMode="numeric" placeholder="-" onChange={(event) => update(rowIndex, { technique: event.target.value })} />
               </TableCell>
               <TableCell className="h-16">
-                <Input disabled={!editable} className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.focus} inputMode="numeric" onChange={(event) => update(rowIndex, { focus: Number(event.target.value) })} />
+                <Input disabled={!editable} className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.focus} inputMode="numeric" placeholder="-" onChange={(event) => update(rowIndex, { focus: event.target.value })} />
               </TableCell>
               <TableCell className="h-16">
-                <Input disabled={!editable} className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.stamina} inputMode="numeric" onChange={(event) => update(rowIndex, { stamina: Number(event.target.value) })} />
+                <Input disabled={!editable} className="bg-slate-50/70 text-center tabular-nums focus-visible:bg-white" value={row.stamina} inputMode="numeric" placeholder="-" onChange={(event) => update(rowIndex, { stamina: event.target.value })} />
               </TableCell>
               <TableCell className="h-16">
-                <Input disabled={!editable} className="bg-emerald-50/80 text-center font-semibold text-emerald-800 focus-visible:bg-white" value={row.grade} onChange={(event) => update(rowIndex, { grade: event.target.value })} />
+                <Input disabled={!editable} className="bg-emerald-50/80 text-center font-semibold text-emerald-800 focus-visible:bg-white" value={row.grade} placeholder="-" onChange={(event) => update(rowIndex, { grade: event.target.value })} />
               </TableCell>
               <TableCell className="h-16 text-xs">
                 <div className="space-y-0.5">

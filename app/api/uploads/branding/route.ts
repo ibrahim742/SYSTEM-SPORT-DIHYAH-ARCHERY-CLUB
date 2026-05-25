@@ -1,10 +1,10 @@
 import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import { randomUUID } from "crypto";
 
 import { ApiError, assertApiRateLimit, assertSameOrigin, created, handleApiError, requireRole } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { MAX_IMAGE_UPLOAD_BYTES } from "@/lib/upload-limits";
+import { resolveUploadsDir } from "@/lib/upload-path";
 import { isUploadedFile, validateUploadFile } from "@/lib/upload-security";
 
 export const runtime = "nodejs";
@@ -24,11 +24,11 @@ export async function POST(request: Request) {
     if (!isUploadedFile(file)) throw new ApiError(422, "File wajib diisi");
     const { bytes, extension } = await validateUploadFile(file, kind === "favicon" ? "favicon" : "image", maxFileSize);
 
-    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    const uploadsDir = resolveUploadsDir();
     await mkdir(uploadsDir, { recursive: true });
 
     const fileName = `${kind}-${randomUUID()}.${extension}`;
-    const filePath = path.join(uploadsDir, fileName);
+    const filePath = `${uploadsDir}/${fileName}`;
     await writeFile(filePath, bytes);
 
     const url = `/uploads/${fileName}`;

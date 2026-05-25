@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,12 @@ export function ProfileForm({ profile }: { profile: ProfileData }) {
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [form.image]);
 
   async function upload(file: File | null) {
     if (!file) return;
@@ -94,6 +99,7 @@ export function ProfileForm({ profile }: { profile: ProfileData }) {
 
     const result = (await response.json()) as { data: { url: string } };
     setForm((current) => ({ ...current, image: result.data.url }));
+    setMessage({ type: "success", text: "Foto berhasil diunggah. Klik Simpan Profil untuk menerapkan perubahan." });
   }
 
   async function submit() {
@@ -157,7 +163,22 @@ export function ProfileForm({ profile }: { profile: ProfileData }) {
       <div className="grid gap-4 p-3 lg:grid-cols-[260px_1fr]">
         <div className="rounded-md border bg-slate-50 p-3">
           <div className="mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border bg-white">
-            {form.image ? <Image src={form.image} alt="Foto profil" width={112} height={112} unoptimized className="h-full w-full object-cover" /> : <span className="text-2xl font-semibold text-slate-400">{form.name.slice(0, 2).toUpperCase() || "US"}</span>}
+            {form.image && !imageFailed ? (
+              <Image
+                src={form.image}
+                alt="Foto profil"
+                width={112}
+                height={112}
+                unoptimized
+                className="h-full w-full object-cover"
+                onError={() => {
+                  setImageFailed(true);
+                  setMessage((current) => current ?? { type: "error", text: "Foto profil tidak bisa dimuat. Silakan unggah ulang lalu simpan profil." });
+                }}
+              />
+            ) : (
+              <span className="text-2xl font-semibold text-slate-400">{form.name.slice(0, 2).toUpperCase() || "US"}</span>
+            )}
           </div>
           <label className="mt-3 inline-flex h-8 w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-white px-2.5 text-xs font-medium hover:bg-slate-50">
             <Camera className="h-3.5 w-3.5" />
