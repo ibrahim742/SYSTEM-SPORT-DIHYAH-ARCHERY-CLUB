@@ -3,7 +3,7 @@ import { PaginatedList } from "@/components/paginated-list";
 import { SectionBox } from "@/components/section-box";
 import { StudentProfileHeader } from "@/components/student-profile-header";
 import { Badge } from "@/components/ui/badge";
-import { buildCompletedMaterialKeys, isMaterialCompleted } from "@/lib/material-progress";
+import { buildLatestCompletedMaterialKeys, isMaterialCompleted } from "@/lib/material-progress";
 import { prisma } from "@/lib/prisma";
 import { getCurrentStudent } from "@/lib/student-portal";
 
@@ -15,7 +15,7 @@ export default async function StudentProgramPage() {
 
   const currentProgram = student.assignments[0]?.program;
   const currentMaterials = currentProgram?.details ?? [];
-  const completedMaterialKeys = buildCompletedMaterialKeys(student.scores, student.trainingLogs);
+  const completedMaterialKeys = buildLatestCompletedMaterialKeys(student.scores, student.trainingLogs);
   const availablePrograms = student.sportId
     ? await prisma.program.findMany({
         where: { sportId: student.sportId, deletedAt: null, status: "ACTIVE" },
