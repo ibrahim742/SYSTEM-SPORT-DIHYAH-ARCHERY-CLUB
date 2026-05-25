@@ -21,6 +21,7 @@ export type ProgressTrendPoint = {
 
 export type ProgressLinePoint = {
   label: string;
+  name: string;
   progress: number;
   attendance: number;
 };
@@ -100,11 +101,11 @@ export function buildTrainingTrendData(logs: TrainingLogLike[], take = 8): Progr
 }
 
 export function buildStudentProgressLineData(
-  students: Array<{ name: string; progress: number; attendance: number }>,
-  take = 8
+  students: Array<{ name: string; progress: number; attendance: number }>
 ): ProgressLinePoint[] {
-  return students.slice(0, take).map((student) => ({
+  return students.map((student) => ({
     label: student.name.split(" ")[0] ?? student.name,
+    name: student.name,
     progress: student.progress,
     attendance: student.attendance
   }));

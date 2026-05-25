@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { levelLabel, studentStatusLabel, trainingStatusLabel } from "@/lib/labels";
+import { buildCompletedMaterialKeys, isMaterialCompleted } from "@/lib/material-progress";
 import { prisma } from "@/lib/prisma";
 import {
   buildTrainingTrendData,
@@ -46,7 +47,7 @@ async function getStudent(id: string) {
       coach: { select: { id: true, name: true, username: true, image: true, coachProfile: { include: { sport: true, category: true } } } },
       assignments: { where: { deletedAt: null }, include: { program: { include: { details: { orderBy: { order: "asc" } } } } }, orderBy: { assignedAt: "desc" } },
       attendanceRecords: { include: { session: true }, orderBy: { createdAt: "desc" } },
-      scores: { orderBy: { scoredAt: "desc" }, take: 3 },
+      scores: { where: { deletedAt: null }, orderBy: { scoredAt: "desc" } },
       trainingLogs: { where: { deletedAt: null }, orderBy: { date: "desc" } }
     }
   });
@@ -66,8 +67,9 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
     );
   }
 
-  const todayTraining = student.assignments[0]?.program.details.map((detail) => detail.material) ?? [];
+  const todayTraining = student.assignments[0]?.program.details ?? [];
   const trainingLogs = collapseTrainingLogDuplicates(student.trainingLogs);
+  const completedMaterialKeys = buildCompletedMaterialKeys(student.scores, trainingLogs);
   const metrics = calculateStudentMetrics({ ...student, trainingLogs });
   const trendData = buildTrainingTrendData(trainingLogs);
   const averageRpe =
@@ -131,17 +133,21 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
 
         <SectionBox title="Latihan Hari Ini" description="Checklist materi yang dikerjakan murid.">
           <div className="divide-y">
-            {todayTraining.map((item, index) => (
-              <div key={item} className="flex items-center justify-between gap-3 py-2 text-xs">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-muted text-[11px] font-semibold">
-                    {index + 1}
-                  </span>
-                  <span className="truncate">{item}</span>
+            {todayTraining.map((detail, index) => {
+              const completed = isMaterialCompleted(detail.material, completedMaterialKeys);
+
+              return (
+                <div key={detail.id} className="flex items-center justify-between gap-3 py-2 text-xs">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-muted text-[11px] font-semibold">
+                      {index + 1}
+                    </span>
+                    <span className="truncate">{detail.material}</span>
+                  </div>
+                  <Badge variant={completed ? "green" : "outline"}>{completed ? "done" : "next"}</Badge>
                 </div>
-                <Badge variant={index < 2 ? "green" : "outline"}>{index < 2 ? "done" : "next"}</Badge>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </SectionBox>
 

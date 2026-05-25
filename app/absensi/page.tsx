@@ -2,7 +2,7 @@
 
 import type { ElementType } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileClock, HeartPulse, LogOut, Save, Search, X } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileClock, HeartPulse, LogOut, Pencil, Save, Search, X } from "lucide-react";
 
 import { BadgeStatus } from "@/components/badge-status";
 import { ProgressBar } from "@/components/progress-bar";
@@ -41,6 +41,7 @@ type ScheduleApiRow = {
 };
 
 type AttendanceRecordApi = {
+  id: string;
   studentId: string;
   status: ApiAttendanceStatus;
   checkIn: string | null;
@@ -65,6 +66,11 @@ type AttendanceRow = {
   status: AttendanceStatus;
   scheduleId: string;
   scheduleTime: string;
+  persisted: boolean;
+  editing: boolean;
+  savedStatus: AttendanceStatus;
+  savedCheckIn: string;
+  savedCheckOut: string;
 };
 
 const statusOptions: Array<{ status: AttendanceStatus; icon: ElementType }> = [
@@ -144,7 +150,12 @@ function buildRows(schedules: ScheduleApiRow[], session: AttendanceSessionApi | 
         checkOut: record?.checkOut ?? "-",
         status: record ? (attendanceStatusLabel(record.status) as AttendanceStatus) : "Belum",
         scheduleId: schedule.id,
-        scheduleTime: `${schedule.startTime}-${schedule.endTime}`
+        scheduleTime: `${schedule.startTime}-${schedule.endTime}`,
+        persisted: Boolean(record),
+        editing: false,
+        savedStatus: record ? (attendanceStatusLabel(record.status) as AttendanceStatus) : "Belum",
+        savedCheckIn: record?.checkIn ?? "-",
+        savedCheckOut: record?.checkOut ?? "-"
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -302,6 +313,22 @@ export default function AttendancePage() {
     );
   }
 
+  function setEditMode(studentId: string, editing: boolean) {
+    setRows((current) =>
+      current.map((row) =>
+        row.studentId === studentId
+          ? {
+              ...row,
+              editing,
+              status: editing ? row.status : row.savedStatus,
+              checkIn: editing ? row.checkIn : row.savedCheckIn,
+              checkOut: editing ? row.checkOut : row.savedCheckOut
+            }
+          : row
+      )
+    );
+  }
+
   function setCheckout(studentId: string) {
     setRows((current) =>
       current.map((row) => {
@@ -345,9 +372,9 @@ export default function AttendancePage() {
 
   async function saveAttendance() {
     if (!selectedDate) return;
-    const filledRows = rows.filter((row) => row.status !== "Belum");
-    if (!filledRows.length) {
-      setMessage("Pilih status minimal satu murid yang dijadwalkan sebelum menyimpan.");
+    const rowsToSave = rows.filter((row) => row.status !== "Belum" && (!row.persisted || row.editing));
+    if (!rowsToSave.length) {
+      setMessage("Tidak ada perubahan absensi baru. Tekan Edit pada murid yang sudah tersimpan bila ingin mengubah statusnya.");
       return;
     }
 
@@ -359,7 +386,7 @@ export default function AttendancePage() {
       body: JSON.stringify({
         date: selectedDate,
         title: "Sesi Sore",
-        records: filledRows.map((row) => ({
+        records: rowsToSave.map((row) => ({
           studentId: row.studentId,
           status: toApiStatus(row.status),
           checkIn: row.checkIn === "-" ? null : row.checkIn,
@@ -462,34 +489,43 @@ export default function AttendancePage() {
                   <BadgeStatus status={row.status === "Belum" ? "Belum Diisi" : row.status} />
                 </TableCell>
                 <TableCell className="h-12">
-                  <div className="inline-flex rounded-md border bg-slate-50 p-0.5 shadow-inner shadow-slate-200/70">
-                    {statusOptions.map(({ status, icon: Icon }) => (
+                  <div className="flex flex-wrap items-center gap-1">
+                    <div className={cn("inline-flex rounded-md border bg-slate-50 p-0.5 shadow-inner shadow-slate-200/70", row.persisted && !row.editing && "opacity-45")}>
+                      {statusOptions.map(({ status, icon: Icon }) => (
+                        <button
+                          key={status}
+                          className={cn(
+                            "inline-flex h-8 min-w-[58px] items-center justify-center gap-1 rounded px-2 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed",
+                            status === "Tidak Masuk" && "min-w-[92px]",
+                            statusButtonClass(row.status === status || (status === "Tidak Masuk" && row.status === "Alpa"), status)
+                          )}
+                          disabled={row.persisted && !row.editing}
+                          onClick={() => setStatus(row.studentId, status)}
+                          type="button"
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {status}
+                        </button>
+                      ))}
                       <button
-                        key={status}
                         className={cn(
-                          "inline-flex h-8 min-w-[58px] items-center justify-center gap-1 rounded px-2 text-[11px] font-semibold transition-colors",
-                          status === "Tidak Masuk" && "min-w-[92px]",
-                          statusButtonClass(row.status === status || (status === "Tidak Masuk" && row.status === "Alpa"), status)
+                          "inline-flex h-8 min-w-[94px] items-center justify-center gap-1 rounded px-2 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed",
+                          checkoutButtonClass(row.status === "Hadir" && (!row.persisted || row.editing), row.checkOut !== "-")
                         )}
-                        onClick={() => setStatus(row.studentId, status)}
+                        disabled={row.status !== "Hadir" || (row.persisted && !row.editing)}
+                        onClick={() => setCheckout(row.studentId)}
                         type="button"
                       >
-                        <Icon className="h-3.5 w-3.5" />
-                        {status}
+                        <LogOut className="h-3.5 w-3.5" />
+                        {row.checkOut === "-" ? "Checkout" : row.checkOut}
                       </button>
-                    ))}
-                    <button
-                      className={cn(
-                        "inline-flex h-8 min-w-[94px] items-center justify-center gap-1 rounded px-2 text-[11px] font-semibold transition-colors",
-                        checkoutButtonClass(row.status === "Hadir", row.checkOut !== "-")
-                      )}
-                      disabled={row.status !== "Hadir"}
-                      onClick={() => setCheckout(row.studentId)}
-                      type="button"
-                    >
-                      <LogOut className="h-3.5 w-3.5" />
-                      {row.checkOut === "-" ? "Checkout" : row.checkOut}
-                    </button>
+                    </div>
+                    {row.persisted ? (
+                      <Button variant="outline" size="sm" onClick={() => setEditMode(row.studentId, !row.editing)}>
+                        {row.editing ? <X className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                        {row.editing ? "Batal" : "Edit"}
+                      </Button>
+                    ) : null}
                   </div>
                 </TableCell>
               </TableRow>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, Check, Pencil, Save, Search, Trash2, X } from "lucide-react";
+import { CalendarClock, Check, ChevronLeft, ChevronRight, Pencil, Save, Search, Trash2, X } from "lucide-react";
 
 import { BadgeStatus } from "@/components/badge-status";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ const WEEK_DAYS = [
   { value: 6, label: "Sabtu" },
   { value: 7, label: "Minggu" }
 ];
+const PAGE_SIZE = 10;
 
 const defaultDayForm = Object.fromEntries(
   WEEK_DAYS.map((day) => [day.value, { enabled: false, startTime: "10:00", endTime: "13:00", note: "" }])
@@ -71,6 +72,7 @@ export default function SchedulePage() {
   const [selectedStudentId, setSelectedStudentId] = useState("");
   const [days, setDays] = useState<Record<number, DayForm>>(defaultDayForm);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -95,6 +97,18 @@ export default function SchedulePage() {
       .filter((student) => `${student.name} ${student.club.name} ${studentCoachName(student)}`.toLowerCase().includes(lowerQuery))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [query, students]);
+  const totalPages = Math.max(1, Math.ceil(visibleStudents.length / PAGE_SIZE));
+  const visiblePageStudents = useMemo(() => visibleStudents.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [page, visibleStudents]);
+  const firstVisibleStudent = visibleStudents.length ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const lastVisibleStudent = Math.min(page * PAGE_SIZE, visibleStudents.length);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   useEffect(() => {
     async function loadData() {
@@ -344,7 +358,7 @@ export default function SchedulePage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {visibleStudents.map((student) => {
+            {visiblePageStudents.map((student) => {
               const studentSchedules = (schedulesByStudent.get(student.id) ?? []).sort((a, b) => (a.dayOfWeek ?? 0) - (b.dayOfWeek ?? 0));
 
               return (
@@ -395,6 +409,24 @@ export default function SchedulePage() {
             ) : null}
           </TableBody>
         </Table>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-slate-50 px-3 py-2 text-xs text-muted-foreground">
+          <span>
+            Menampilkan {firstVisibleStudent}-{lastVisibleStudent} dari {visibleStudents.length} data
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page <= 1}>
+              <ChevronLeft className="h-3.5 w-3.5" />
+              Sebelumnya
+            </Button>
+            <span className="min-w-16 text-center font-medium text-slate-700">
+              {page} / {totalPages}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page >= totalPages}>
+              Berikutnya
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
       </section>
     </div>
   );

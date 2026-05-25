@@ -3,6 +3,7 @@ import { PaginatedList } from "@/components/paginated-list";
 import { SectionBox } from "@/components/section-box";
 import { StudentProfileHeader } from "@/components/student-profile-header";
 import { Badge } from "@/components/ui/badge";
+import { buildCompletedMaterialKeys, isMaterialCompleted } from "@/lib/material-progress";
 import { prisma } from "@/lib/prisma";
 import { getCurrentStudent } from "@/lib/student-portal";
 
@@ -13,6 +14,8 @@ export default async function StudentProgramPage() {
   if (!student) return <EmptyState title="Profil murid belum tersedia" description="Hubungi Admin untuk menghubungkan akun dengan data murid." />;
 
   const currentProgram = student.assignments[0]?.program;
+  const currentMaterials = currentProgram?.details ?? [];
+  const completedMaterialKeys = buildCompletedMaterialKeys(student.scores, student.trainingLogs);
   const availablePrograms = student.sportId
     ? await prisma.program.findMany({
         where: { sportId: student.sportId, deletedAt: null, status: "ACTIVE" },
@@ -26,18 +29,23 @@ export default async function StudentProgramPage() {
       <StudentProfileHeader student={student} />
       <SectionBox title="Program Saya" description={currentProgram ? currentProgram.name : "Belum ada program aktif"}>
         <PaginatedList className="divide-y">
-          {(currentProgram?.details ?? []).map((detail) => (
-            <div key={detail.id} className="grid gap-2 py-2 text-xs md:grid-cols-[90px_1fr_90px_110px_90px] md:items-center">
-              <span className="font-semibold">{detail.day}</span>
-              <div className="min-w-0">
-                <p className="truncate font-medium">{detail.material}</p>
-                <p className="truncate text-muted-foreground">{detail.note ?? "-"}</p>
+          {currentMaterials.map((detail) => {
+            const completed = isMaterialCompleted(detail.material, completedMaterialKeys);
+
+            return (
+              <div key={detail.id} className="grid gap-2 py-2 text-xs md:grid-cols-[90px_1fr_90px_110px_90px_80px] md:items-center">
+                <span className="font-semibold">{detail.day}</span>
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{detail.material}</p>
+                  <p className="truncate text-muted-foreground">{detail.note ?? "-"}</p>
+                </div>
+                <Badge variant="outline">{detail.set} set</Badge>
+                <span>{detail.reps}</span>
+                <Badge variant="outline">{detail.duration}</Badge>
+                <Badge variant={completed ? "green" : "outline"}>{completed ? "done" : "next"}</Badge>
               </div>
-              <Badge variant="outline">{detail.set} set</Badge>
-              <span>{detail.reps}</span>
-              <Badge variant="outline">{detail.duration}</Badge>
-            </div>
-          ))}
+            );
+          })}
         </PaginatedList>
       </SectionBox>
       <SectionBox title="Update Program Minat Olahraga" description={`${student.sport?.name ?? "Olahraga"} - latihan dan persiapan turnamen`}>

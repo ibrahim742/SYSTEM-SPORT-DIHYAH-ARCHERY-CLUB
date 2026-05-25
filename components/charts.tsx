@@ -135,21 +135,27 @@ function TrendTooltip({ active, payload, label }: { active?: boolean; payload?: 
 
 export function WeeklyProgressChart({ data = weeklyProgress }: { data?: WeeklyPoint[] }) {
   const chartData = withLabel(data);
+  const chartWidth = Math.max(720, chartData.length * 82);
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={chartData} margin={{ left: -24, right: 8, top: 8, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-        <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} domain={[0, 100]} />
-        <Tooltip
-          contentStyle={{ borderRadius: 6, border: "1px solid #e5e7eb", fontSize: 12 }}
-          labelStyle={{ fontSize: 12 }}
-        />
-        <Line type="monotone" dataKey="progress" stroke="#059669" strokeWidth={2} dot={{ r: 2 }} name="Progress" />
-        <Line type="monotone" dataKey="attendance" stroke="#2563eb" strokeWidth={2} dot={{ r: 2 }} name="Kehadiran" />
-      </LineChart>
-    </ResponsiveContainer>
+    <div className="h-full overflow-x-auto">
+      <div className="h-full" style={{ minWidth: chartWidth }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ left: -24, right: 8, top: 8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} interval={0} />
+            <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} domain={[0, 100]} />
+            <Tooltip
+              contentStyle={{ borderRadius: 6, border: "1px solid #e5e7eb", fontSize: 12 }}
+              labelFormatter={(_, payload) => payload?.[0]?.payload?.name ?? payload?.[0]?.payload?.label ?? ""}
+              labelStyle={{ fontSize: 12 }}
+            />
+            <Line type="monotone" dataKey="progress" stroke="#059669" strokeWidth={2} dot={{ r: 2 }} name="Progress" />
+            <Line type="monotone" dataKey="attendance" stroke="#2563eb" strokeWidth={2} dot={{ r: 2 }} name="Kehadiran" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
 
