@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { levelLabel, studentStatusLabel, trainingStatusLabel } from "@/lib/labels";
-import { buildLatestCompletedMaterialKeys, isMaterialCompleted } from "@/lib/material-progress";
+import { buildCompletedMaterialKeys, isMaterialCompleted } from "@/lib/material-progress";
 import { prisma } from "@/lib/prisma";
 import {
   buildTrainingTrendData,
@@ -69,7 +69,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
 
   const todayTraining = student.assignments[0]?.program.details ?? [];
   const trainingLogs = collapseTrainingLogDuplicates(student.trainingLogs);
-  const completedMaterialKeys = buildLatestCompletedMaterialKeys(student.scores, trainingLogs);
+  const completedMaterialKeys = buildCompletedMaterialKeys(student.scores, trainingLogs);
   const metrics = calculateStudentMetrics({ ...student, trainingLogs });
   const trendData = buildTrainingTrendData(trainingLogs);
   const averageRpe =
@@ -131,7 +131,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           )}
         </SectionBox>
 
-        <SectionBox title="Latihan Hari Ini" description="Checklist materi yang dikerjakan murid.">
+        <SectionBox title="Latihan Hari Ini" description="Status done bertambah dari seluruh materi yang sudah pernah dinilai coach/admin.">
           <div className="divide-y">
             {todayTraining.map((detail, index) => {
               const completed = isMaterialCompleted(detail.material, completedMaterialKeys);

@@ -3,7 +3,7 @@ import { PaginatedList } from "@/components/paginated-list";
 import { SectionBox } from "@/components/section-box";
 import { StudentProfileHeader } from "@/components/student-profile-header";
 import { Badge } from "@/components/ui/badge";
-import { buildLatestCompletedMaterialKeys, isMaterialCompleted } from "@/lib/material-progress";
+import { buildCompletedMaterialKeys, isMaterialCompleted } from "@/lib/material-progress";
 import { prisma } from "@/lib/prisma";
 import { getCurrentStudent } from "@/lib/student-portal";
 
@@ -15,7 +15,7 @@ export default async function StudentProgramPage() {
 
   const currentProgram = student.assignments[0]?.program;
   const currentMaterials = currentProgram?.details ?? [];
-  const completedMaterialKeys = buildLatestCompletedMaterialKeys(student.scores, student.trainingLogs);
+  const completedMaterialKeys = buildCompletedMaterialKeys(student.scores, student.trainingLogs);
   const availablePrograms = student.sportId
     ? await prisma.program.findMany({
         where: { sportId: student.sportId, deletedAt: null, status: "ACTIVE" },
@@ -27,7 +27,7 @@ export default async function StudentProgramPage() {
   return (
     <div className="space-y-3">
       <StudentProfileHeader student={student} />
-      <SectionBox title="Program Saya" description={currentProgram ? currentProgram.name : "Belum ada program aktif"}>
+      <SectionBox title="Program Saya" description={currentProgram ? `${currentProgram.name} - status done bertambah dari seluruh materi yang sudah pernah dinilai.` : "Belum ada program aktif"}>
         <PaginatedList className="divide-y">
           {currentMaterials.map((detail) => {
             const completed = isMaterialCompleted(detail.material, completedMaterialKeys);
