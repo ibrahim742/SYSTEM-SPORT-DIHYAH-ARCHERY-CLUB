@@ -7,6 +7,7 @@ import { BadgeStatus } from "@/components/badge-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatClock, isValidClock, normalizeClockInput } from "@/lib/time-format";
 import { cn } from "@/lib/utils";
 
 type StudentApiRow = {
@@ -49,12 +50,12 @@ const WEEK_DAYS = [
 const PAGE_SIZE = 10;
 
 const defaultDayForm = Object.fromEntries(
-  WEEK_DAYS.map((day) => [day.value, { enabled: false, startTime: "10:00", endTime: "13:00", note: "" }])
+  WEEK_DAYS.map((day) => [day.value, { enabled: false, startTime: "10.00", endTime: "13.00", note: "" }])
 ) as Record<number, DayForm>;
 
 function cloneDefaultDayForm() {
   return Object.fromEntries(
-    WEEK_DAYS.map((day) => [day.value, { enabled: false, startTime: "10:00", endTime: "13:00", note: "" }])
+    WEEK_DAYS.map((day) => [day.value, { enabled: false, startTime: "10.00", endTime: "13.00", note: "" }])
   ) as Record<number, DayForm>;
 }
 
@@ -148,8 +149,8 @@ export default function SchedulePage() {
       if (!schedule.dayOfWeek) continue;
       nextDays[schedule.dayOfWeek] = {
         enabled: true,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
+        startTime: formatClock(schedule.startTime),
+        endTime: formatClock(schedule.endTime),
         note: schedule.note ?? ""
       };
     }
@@ -192,7 +193,13 @@ export default function SchedulePage() {
       return;
     }
 
-    const invalidDay = enabledDays.find((day) => days[day.value].endTime <= days[day.value].startTime);
+    const invalidFormatDay = enabledDays.find((day) => !isValidClock(days[day.value].startTime) || !isValidClock(days[day.value].endTime));
+    if (invalidFormatDay) {
+      setMessage(`Format jam ${invalidFormatDay.label} harus HH.mm, contoh 13.00 atau 23.59.`);
+      return;
+    }
+
+    const invalidDay = enabledDays.find((day) => normalizeClockInput(days[day.value].endTime) <= normalizeClockInput(days[day.value].startTime));
     if (invalidDay) {
       setMessage(`Jam pulang ${invalidDay.label} harus setelah jam masuk.`);
       return;
@@ -224,8 +231,8 @@ export default function SchedulePage() {
             studentId: selectedStudentId,
             date: null,
             dayOfWeek: day.value,
-            startTime: form.startTime,
-            endTime: form.endTime,
+            startTime: normalizeClockInput(form.startTime),
+            endTime: normalizeClockInput(form.endTime),
             note: form.note
           })
         });
@@ -331,8 +338,22 @@ export default function SchedulePage() {
                     >
                       {form.enabled ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
                     </button>
-                    <Input disabled={!form.enabled} type="time" value={form.startTime} onChange={(event) => updateDay(day.value, { startTime: event.target.value })} />
-                    <Input disabled={!form.enabled} type="time" value={form.endTime} onChange={(event) => updateDay(day.value, { endTime: event.target.value })} />
+                    <Input
+                      disabled={!form.enabled}
+                      inputMode="numeric"
+                      placeholder="13.00"
+                      value={form.startTime}
+                      onBlur={(event) => updateDay(day.value, { startTime: formatClock(event.target.value) })}
+                      onChange={(event) => updateDay(day.value, { startTime: event.target.value })}
+                    />
+                    <Input
+                      disabled={!form.enabled}
+                      inputMode="numeric"
+                      placeholder="23.59"
+                      value={form.endTime}
+                      onBlur={(event) => updateDay(day.value, { endTime: formatClock(event.target.value) })}
+                      onChange={(event) => updateDay(day.value, { endTime: event.target.value })}
+                    />
                     <Input className="hidden md:block" disabled={!form.enabled} placeholder="Catatan" value={form.note} onChange={(event) => updateDay(day.value, { note: event.target.value })} />
                   </div>
                 );
@@ -376,7 +397,7 @@ export default function SchedulePage() {
                             <CalendarClock className="h-3 w-3 text-muted-foreground" />
                             <span className="font-semibold">{dayLabel(schedule.dayOfWeek)}</span>
                             <span className="text-muted-foreground">
-                              {schedule.startTime}-{schedule.endTime}
+                              {formatClock(schedule.startTime)}-{formatClock(schedule.endTime)}
                             </span>
                           </span>
                         ))}

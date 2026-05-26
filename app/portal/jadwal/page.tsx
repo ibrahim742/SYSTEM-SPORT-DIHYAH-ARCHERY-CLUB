@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/empty-state";
 import { SectionBox } from "@/components/section-box";
 import { StudentProfileHeader } from "@/components/student-profile-header";
 import { getCurrentStudent } from "@/lib/student-portal";
+import { formatClock } from "@/lib/time-format";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function StudentSchedulePage() {
                     <p className="text-sm font-semibold">{dayLabel(schedule.dayOfWeek)}</p>
                   </div>
                   <span className="rounded-md border bg-white px-2 py-1 text-xs font-semibold">
-                    {schedule.startTime} - {schedule.endTime}
+                    {formatClock(schedule.startTime)} - {formatClock(schedule.endTime)}
                   </span>
                 </div>
                 {schedule.note ? <p className="mt-2 text-xs text-muted-foreground">{schedule.note}</p> : null}

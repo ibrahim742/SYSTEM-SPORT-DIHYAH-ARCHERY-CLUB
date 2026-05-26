@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { buildStudentProgressLineData, collapseTrainingLogDuplicates } from "@/lib/progress-analytics";
 import { scopedStudentWhere } from "@/lib/rbac";
 import { averageStudentMetrics, calculateStudentMetrics } from "@/lib/student-metrics";
+import { normalizeClockInput } from "@/lib/time-format";
 import { levelTone, softPill } from "@/lib/ui-styles";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +52,7 @@ function todayRange() {
 
 function sessionPartFromTime(value: string | null | undefined) {
   if (!value) return null;
-  const hour = Number(value.split(":")[0]);
+  const hour = Number(normalizeClockInput(value).split(":")[0]);
   if (!Number.isFinite(hour)) return null;
   return hour < 12 ? "pagi" : "sore";
 }

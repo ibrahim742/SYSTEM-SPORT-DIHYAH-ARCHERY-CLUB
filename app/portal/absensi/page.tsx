@@ -5,6 +5,7 @@ import { SectionBox } from "@/components/section-box";
 import { StudentProfileHeader } from "@/components/student-profile-header";
 import { attendanceStatusLabel } from "@/lib/labels";
 import { getCurrentStudent } from "@/lib/student-portal";
+import { formatClock } from "@/lib/time-format";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +29,8 @@ export default async function StudentAttendancePage() {
             <div key={record.id} className="grid gap-3 py-3 text-xs md:grid-cols-[140px_1fr_100px_100px_120px] md:items-center">
               <span className="font-medium">{record.session.date.toISOString().slice(0, 10)}</span>
               <span className="text-muted-foreground">{record.session.title}</span>
-              <span>{record.checkIn ?? "-"}</span>
-              <span>{record.checkOut ?? "-"}</span>
+              <span>{formatClock(record.checkIn)}</span>
+              <span>{formatClock(record.checkOut)}</span>
               <BadgeStatus status={attendanceStatusLabel(record.status)} />
             </div>
           ))}

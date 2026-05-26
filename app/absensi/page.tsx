@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { attendanceStatusLabel } from "@/lib/labels";
+import { formatClock, normalizeClockInput } from "@/lib/time-format";
 import { cn } from "@/lib/utils";
 
 type AttendanceStatus = "Belum" | "Hadir" | "Tidak Masuk" | "Izin" | "Sakit" | "Alpa";
@@ -106,7 +107,7 @@ function currentTime() {
 
 function sessionPartFromTime(value: string | null | undefined) {
   if (!value || value === "-") return null;
-  const hour = Number(value.split(":")[0]);
+  const hour = Number(normalizeClockInput(value).split(":")[0]);
   if (!Number.isFinite(hour)) return null;
   return hour < 12 ? "pagi" : "sore";
 }
@@ -177,7 +178,7 @@ function buildRows(schedules: ScheduleApiRow[], sessions: AttendanceSessionApi[]
         checkOut: record?.checkOut ?? "-",
         status: record ? (attendanceStatusLabel(record.status) as AttendanceStatus) : "Belum",
         scheduleId: schedule.id,
-        scheduleTime: `${schedule.startTime}-${schedule.endTime}`,
+        scheduleTime: `${formatClock(schedule.startTime)}-${formatClock(schedule.endTime)}`,
         persisted: Boolean(record),
         editing: false,
         savedStatus: record ? (attendanceStatusLabel(record.status) as AttendanceStatus) : "Belum",
@@ -503,10 +504,10 @@ export default function AttendancePage() {
                 <TableCell className="h-12 whitespace-nowrap">
                   <span className="inline-flex items-center gap-1.5">
                     {row.checkIn !== "-" ? <Clock3 className="h-3.5 w-3.5 text-muted-foreground" /> : null}
-                    {row.checkIn}
+                    {formatClock(row.checkIn)}
                   </span>
                 </TableCell>
-                <TableCell className="h-12 whitespace-nowrap text-slate-600">{row.checkOut}</TableCell>
+                <TableCell className="h-12 whitespace-nowrap text-slate-600">{formatClock(row.checkOut)}</TableCell>
                 <TableCell className="h-12 whitespace-nowrap">
                   <BadgeStatus status={row.status === "Belum" ? "Belum Diisi" : row.status} />
                 </TableCell>
@@ -539,7 +540,7 @@ export default function AttendancePage() {
                         type="button"
                       >
                         <LogOut className="h-3.5 w-3.5" />
-                        {row.checkOut === "-" ? "Checkout" : row.checkOut}
+                        {row.checkOut === "-" ? "Checkout" : formatClock(row.checkOut)}
                       </button>
                     </div>
                     {row.persisted ? (
