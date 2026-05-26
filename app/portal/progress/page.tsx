@@ -47,14 +47,23 @@ export default async function StudentProgressPage() {
             </div>
           </div>
         </SectionBox>
-        <SectionBox title="Log Progress" description="Riwayat hasil latihan terakhir">
+        <SectionBox title="Log Progress" description="Riwayat lengkap hasil latihan, durasi, RPE, catatan, dan status." className="md:col-span-2">
+          <div className="hidden border-b pb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground md:grid md:grid-cols-[170px_1fr_90px_80px_1fr_90px] md:gap-2">
+            <span>Waktu</span>
+            <span>Hasil Latihan</span>
+            <span>Durasi</span>
+            <span>RPE</span>
+            <span>Catatan</span>
+            <span>Status</span>
+          </div>
           <PaginatedList className="divide-y">
             {student.trainingLogs.map((log) => (
-              <div key={log.id} className="grid gap-2 py-2 text-xs md:grid-cols-[170px_1fr_100px_70px_90px] md:items-center">
+              <div key={log.id} className="grid gap-2 py-2 text-xs md:grid-cols-[170px_1fr_90px_80px_1fr_90px] md:items-center">
                 <span className="font-medium">{formatTrainingLogTimestamp(getTrainingLogDisplayDate(log))}</span>
                 <span>{log.result}</span>
                 <span className="text-muted-foreground">{log.duration}</span>
                 <span>RPE {log.rpe}</span>
+                <span className="text-muted-foreground">{log.note || "-"}</span>
                 <BadgeStatus status={trainingStatusLabel(log.status)} />
               </div>
             ))}
