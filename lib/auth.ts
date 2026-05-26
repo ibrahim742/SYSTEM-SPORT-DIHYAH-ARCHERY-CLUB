@@ -47,7 +47,12 @@ function userLookupWhere(identifier: string) {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: process.env.AUTH_TRUST_HOST === "true",
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
+    maxAge: 60 * 60 * 24 * 30,
+    updateAge: 60 * 60 * 24
+  },
+  jwt: {
+    maxAge: 60 * 60 * 24 * 30
   },
   pages: {
     signIn: "/login"

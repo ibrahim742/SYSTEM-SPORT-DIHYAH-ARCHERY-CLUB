@@ -196,14 +196,23 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
         </ChartBox>
       </div>
 
-      <SectionBox title="Riwayat Progress" description="Hari, tanggal, dan jam hasil latihan sampai menit.">
+      <SectionBox title="Riwayat Progress" description="Riwayat hasil, durasi, RPE, catatan, dan status latihan.">
+        <div className="hidden border-b pb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground md:grid md:grid-cols-[170px_1fr_100px_70px_1fr_90px] md:gap-2">
+          <span>Waktu</span>
+          <span>Hasil Latihan</span>
+          <span>Durasi</span>
+          <span>RPE</span>
+          <span>Catatan</span>
+          <span>Status</span>
+        </div>
         <PaginatedList className="divide-y">
           {trainingLogs.map((log) => (
-            <div key={log.id} className="grid gap-2 py-2 text-xs md:grid-cols-[170px_1fr_100px_70px_90px] md:items-center">
+            <div key={log.id} className="grid gap-2 py-2 text-xs md:grid-cols-[170px_1fr_100px_70px_1fr_90px] md:items-center">
               <span className="font-medium">{formatTrainingLogTimestamp(getTrainingLogDisplayDate(log))}</span>
               <span>{log.result}</span>
               <span className="text-muted-foreground">{log.duration}</span>
               <span>RPE {log.rpe}</span>
+              <span className="text-muted-foreground">{log.note || "-"}</span>
               <BadgeStatus status={trainingStatusLabel(log.status)} />
             </div>
           ))}

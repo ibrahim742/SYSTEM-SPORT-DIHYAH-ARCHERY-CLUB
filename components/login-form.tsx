@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getSession, signIn } from "next-auth/react";
 import { BarChart3, LockKeyhole, UserRound } from "lucide-react";
 
@@ -15,6 +15,8 @@ type LoginBranding = {
   loginSubtitle: string;
   logoUrl: string | null;
 };
+
+const rememberedUsernameKey = "dihyaharchery:remembered-username";
 
 function normalizeRedirectUrl(url: string | null | undefined) {
   if (!url) return "/";
@@ -31,6 +33,16 @@ function normalizeRedirectUrl(url: string | null | undefined) {
 export function LoginForm({ branding, callbackUrl }: { branding: LoginBranding; callbackUrl?: string }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [username, setUsername] = useState("");
+  const [rememberUsername, setRememberUsername] = useState(true);
+
+  useEffect(() => {
+    const rememberedUsername = window.localStorage.getItem(rememberedUsernameKey);
+    if (rememberedUsername) {
+      setUsername(rememberedUsername);
+      setRememberUsername(true);
+    }
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,6 +61,12 @@ export function LoginForm({ branding, callbackUrl }: { branding: LoginBranding; 
     if (response?.error) {
       setError("Username/email atau password tidak sesuai.");
       return;
+    }
+
+    if (rememberUsername) {
+      window.localStorage.setItem(rememberedUsernameKey, String(form.get("username") ?? ""));
+    } else {
+      window.localStorage.removeItem(rememberedUsernameKey);
     }
 
     const session = await getSession();
@@ -71,7 +89,7 @@ export function LoginForm({ branding, callbackUrl }: { branding: LoginBranding; 
             <label className="text-xs font-medium">Username atau Email</label>
             <div className="relative">
               <UserRound className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input className="pl-7" name="username" autoComplete="username" required />
+              <Input className="pl-7" name="username" autoComplete="username" required value={username} onChange={(event) => setUsername(event.target.value)} />
             </div>
           </div>
           <div className="space-y-1">
@@ -81,6 +99,15 @@ export function LoginForm({ branding, callbackUrl }: { branding: LoginBranding; 
               <Input className="pl-7" name="password" autoComplete="current-password" required type="password" />
             </div>
           </div>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-slate-300"
+              checked={rememberUsername}
+              onChange={(event) => setRememberUsername(event.target.checked)}
+            />
+            Ingat username di perangkat ini
+          </label>
           {error ? <p className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">{error}</p> : null}
           <Button className="w-full" disabled={loading} type="submit">
             {loading ? "Memproses..." : "Masuk"}
