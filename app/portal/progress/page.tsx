@@ -72,13 +72,31 @@ export default async function StudentProgressPage() {
           </div>
           <PaginatedList className="divide-y">
             {student.trainingLogs.map((log) => (
-              <div key={log.id} className="grid gap-2 py-2 text-xs md:grid-cols-[170px_1fr_90px_80px_1fr_90px] md:items-center">
-                <span className="font-medium">{formatTrainingLogTimestamp(getTrainingLogDisplayDate(log))}</span>
-                <span>{log.result}</span>
-                <span className="text-muted-foreground">{log.duration}</span>
-                <span>RPE {log.rpe}</span>
-                <span className="text-muted-foreground">{log.note || "-"}</span>
-                <BadgeStatus status={trainingStatusLabel(log.status)} />
+              <div key={log.id} className="grid gap-2 py-3 text-xs md:grid-cols-[170px_1fr_90px_80px_1fr_90px] md:items-center">
+                <div className="flex items-center justify-between gap-3 md:block">
+                  <span className="font-semibold uppercase text-muted-foreground md:hidden">Waktu</span>
+                  <span className="text-right font-medium md:text-left">{formatTrainingLogTimestamp(getTrainingLogDisplayDate(log))}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 md:block">
+                  <span className="font-semibold uppercase text-muted-foreground md:hidden">Hasil Latihan</span>
+                  <span className="text-right md:text-left">{log.result}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 md:block">
+                  <span className="font-semibold uppercase text-muted-foreground md:hidden">Durasi</span>
+                  <span className="text-muted-foreground">{log.duration}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 md:block">
+                  <span className="font-semibold uppercase text-muted-foreground md:hidden">RPE</span>
+                  <span>RPE {log.rpe}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 md:block">
+                  <span className="font-semibold uppercase text-muted-foreground md:hidden">Catatan</span>
+                  <span className="text-right text-muted-foreground md:text-left">{log.note || "-"}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 md:block">
+                  <span className="font-semibold uppercase text-muted-foreground md:hidden">Status</span>
+                  <BadgeStatus status={trainingStatusLabel(log.status)} />
+                </div>
               </div>
             ))}
           </PaginatedList>
