@@ -151,7 +151,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
           </div>
         </SectionBox>
 
-        <SectionBox title="Ringkasan Murid" description="Progress dan kehadiran sesi berjalan.">
+        <SectionBox title="Ringkasan Murid" description="Progress dan kehadiran sesi berjalan." className="lg:col-span-2">
           <div className="space-y-4">
             <div>
               <div className="mb-1 flex justify-between text-xs">

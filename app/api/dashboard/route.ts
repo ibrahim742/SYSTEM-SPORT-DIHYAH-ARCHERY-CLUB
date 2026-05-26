@@ -6,16 +6,57 @@ import { averageStudentMetrics, calculateStudentMetrics } from "@/lib/student-me
 
 export const dynamic = "force-dynamic";
 
+function todayRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start, end };
+}
+
+function sessionPartFromTime(value: string | null | undefined) {
+  if (!value) return null;
+  const hour = Number(value.split(":")[0]);
+  if (!Number.isFinite(hour)) return null;
+  return hour < 12 ? "pagi" : "sore";
+}
+
+function sessionPartFromTitle(title: string) {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("pagi")) return "pagi";
+  if (normalized.includes("sore")) return "sore";
+  return null;
+}
+
+function attendanceSessionNote(sessions: Array<{ title: string; records: Array<{ checkIn: string | null }> }>) {
+  const parts = new Set<string>();
+  for (const session of sessions) {
+    const titlePart = sessionPartFromTitle(session.title);
+    if (titlePart) parts.add(titlePart);
+    for (const record of session.records) {
+      const timePart = sessionPartFromTime(record.checkIn);
+      if (timePart) parts.add(timePart);
+    }
+  }
+
+  if (parts.has("pagi") && parts.has("sore")) return "sesi pagi & sore";
+  if (parts.has("pagi")) return "sesi pagi";
+  if (parts.has("sore")) return "sesi sore";
+  return "belum ada sesi";
+}
+
 export async function GET() {
   try {
     const session = await requireSession();
     const studentWhere = scopedStudentWhere(session);
+    const { start, end } = todayRange();
 
-    const [students, latestSession, monitoringStudents] = await Promise.all([
+    const [students, todaySessions, monitoringStudents] = await Promise.all([
       prisma.student.count({ where: studentWhere }),
-      prisma.attendanceSession.findFirst({
+      prisma.attendanceSession.findMany({
         where: {
           deletedAt: null,
+          date: { gte: start, lt: end },
           records: {
             some: {
               student: studentWhere
@@ -27,7 +68,7 @@ export async function GET() {
             where: { student: studentWhere }
           }
         },
-        orderBy: { date: "desc" }
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }]
       }),
       prisma.student.findMany({
         where: studentWhere,
@@ -59,15 +100,17 @@ export async function GET() {
         ...calculateStudentMetrics(student)
       }))
       .sort((a, b) => b.progress - a.progress);
-    const presentToday = latestSession?.records.filter((record) => record.status === "HADIR").length ?? 0;
-    const inactiveToday = latestSession?.records.filter((record) => record.status !== "HADIR").length ?? 0;
+    const todayRecords = todaySessions.flatMap((attendanceSession) => attendanceSession.records);
+    const presentToday = todayRecords.filter((record) => record.status === "HADIR").length;
+    const inactiveToday = todayRecords.filter((record) => record.status !== "HADIR").length;
 
     return ok({
       stats: {
         totalStudents: students,
         presentToday,
         inactiveToday,
-        avgProgress
+        avgProgress,
+        sessionNote: attendanceSessionNote(todaySessions)
       },
       monitoring
     });

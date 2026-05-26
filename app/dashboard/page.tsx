@@ -21,6 +21,14 @@ export const dynamic = "force-dynamic";
 
 type MonitoringRow = Awaited<ReturnType<typeof getDashboardRows>>["monitoring"][number];
 
+type TodayAttendanceSession = {
+  title: string;
+  records: Array<{
+    status: string;
+    checkIn: string | null;
+  }>;
+};
+
 function currentAssignment(assignments: MonitoringRow["assignments"]) {
   return assignments.find((assignment) => assignment.status === "AKTIF") ?? assignments[0] ?? null;
 }
@@ -33,10 +41,51 @@ function dashboardAssignmentStatus(assignments: MonitoringRow["assignments"]) {
   return "BELUM";
 }
 
+function todayRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { start, end };
+}
+
+function sessionPartFromTime(value: string | null | undefined) {
+  if (!value) return null;
+  const hour = Number(value.split(":")[0]);
+  if (!Number.isFinite(hour)) return null;
+  return hour < 12 ? "pagi" : "sore";
+}
+
+function sessionPartFromTitle(title: string) {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("pagi")) return "pagi";
+  if (normalized.includes("sore")) return "sore";
+  return null;
+}
+
+function attendanceSessionNote(sessions: TodayAttendanceSession[]) {
+  const parts = new Set<string>();
+
+  for (const session of sessions) {
+    const titlePart = sessionPartFromTitle(session.title);
+    if (titlePart) parts.add(titlePart);
+
+    for (const record of session.records) {
+      const timePart = sessionPartFromTime(record.checkIn);
+      if (timePart) parts.add(timePart);
+    }
+  }
+
+  if (parts.has("pagi") && parts.has("sore")) return "sesi pagi & sore";
+  if (parts.has("pagi")) return "sesi pagi";
+  if (parts.has("sore")) return "sesi sore";
+  return "belum ada sesi";
+}
+
 async function getDashboardRows() {
   const session = await auth();
   if (!session?.user) {
-    return { total: 0, hadir: 0, tidakHadir: 0, avgProgress: 0, monitoring: [] };
+    return { total: 0, hadir: 0, tidakHadir: 0, avgProgress: 0, sessionNote: "belum ada sesi", monitoring: [] };
   }
 
   const scope = scopedStudentWhere({
@@ -49,11 +98,13 @@ async function getDashboardRows() {
   });
 
   try {
-    const [total, latestSession, monitoringStudents] = await Promise.all([
+    const { start, end } = todayRange();
+    const [total, todaySessions, monitoringStudents] = await Promise.all([
       prisma.student.count({ where: scope }),
-      prisma.attendanceSession.findFirst({
+      prisma.attendanceSession.findMany({
         where: {
           deletedAt: null,
+          date: { gte: start, lt: end },
           records: {
             some: {
               student: scope
@@ -65,7 +116,7 @@ async function getDashboardRows() {
             where: { student: scope }
           }
         },
-        orderBy: { date: "desc" }
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }]
       }),
       prisma.student.findMany({
         where: scope,
@@ -96,14 +147,16 @@ async function getDashboardRows() {
         ...calculateStudentMetrics(student)
       }))
       .sort((a, b) => b.progress - a.progress);
-    const hadir = latestSession?.records.filter((record) => record.status === "HADIR").length ?? 0;
-    const tidakHadir = latestSession?.records.filter((record) => record.status !== "HADIR").length ?? 0;
+    const todayRecords = todaySessions.flatMap((attendanceSession) => attendanceSession.records);
+    const hadir = todayRecords.filter((record) => record.status === "HADIR").length;
+    const tidakHadir = todayRecords.filter((record) => record.status !== "HADIR").length;
 
     return {
       total,
       hadir,
       tidakHadir,
       avgProgress: avg.progress,
+      sessionNote: attendanceSessionNote(todaySessions),
       monitoring
     };
   } catch (error) {
@@ -114,6 +167,7 @@ async function getDashboardRows() {
       hadir: 3,
       tidakHadir: 2,
       avgProgress: 70,
+      sessionNote: "sesi pagi & sore",
       monitoring: monitoringRows.map((row, index) => ({
         id: `dev-${index}`,
         name: row.student,
@@ -133,7 +187,7 @@ async function getDashboardRows() {
   }
 }
 
-function makeStats(total: number, hadir: number, tidakHadir: number, avgProgress: number) {
+function makeStats(total: number, hadir: number, tidakHadir: number, avgProgress: number, sessionNote: string) {
   return [
     {
     label: "Total Murid",
@@ -145,7 +199,7 @@ function makeStats(total: number, hadir: number, tidakHadir: number, avgProgress
     {
     label: "Hadir Hari Ini",
     value: hadir.toString(),
-    note: "sesi sore",
+    note: sessionNote,
     icon: CalendarCheck2,
     tone: "border-l-emerald-400 bg-gradient-to-br from-emerald-50/80 via-white to-white text-emerald-700"
     },
@@ -190,7 +244,7 @@ const columns: Column<MonitoringRow>[] = [
 
 export default async function DashboardPage() {
   const dashboard = await getDashboardRows();
-  const stats = makeStats(dashboard.total, dashboard.hadir, dashboard.tidakHadir, dashboard.avgProgress);
+  const stats = makeStats(dashboard.total, dashboard.hadir, dashboard.tidakHadir, dashboard.avgProgress, dashboard.sessionNote);
   const progressChartData = buildStudentProgressLineData(dashboard.monitoring);
 
   return (

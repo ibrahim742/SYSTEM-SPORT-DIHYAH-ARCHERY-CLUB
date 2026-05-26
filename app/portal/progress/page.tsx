@@ -16,6 +16,10 @@ export default async function StudentProgressPage() {
   const student = await getCurrentStudent();
   if (!student) return <EmptyState title="Profil murid belum tersedia" description="Hubungi Admin untuk menghubungkan akun dengan data murid." />;
   const trendData = buildTrainingTrendData(student.trainingLogs);
+  const averageRpe =
+    student.trainingLogs.length > 0
+      ? Math.round((student.trainingLogs.reduce((total, log) => total + log.rpe, 0) / student.trainingLogs.length) * 10) / 10
+      : 0;
 
   return (
     <div className="space-y-3">
@@ -29,7 +33,7 @@ export default async function StudentProgressPage() {
         </ChartBox>
       </div>
       <div className="grid gap-3 md:grid-cols-2">
-        <SectionBox title="Progress Saya" description="Ringkasan latihan berjalan">
+        <SectionBox title="Progress Saya" description="Ringkasan latihan berjalan" className="md:col-span-2">
           <div className="space-y-4">
             <div>
               <div className="mb-1 flex justify-between text-xs">
@@ -44,6 +48,16 @@ export default async function StudentProgressPage() {
                 <span className="font-medium">{student.attendance}%</span>
               </div>
               <ProgressBar value={student.attendance} showValue={false} />
+            </div>
+            <div className="grid grid-cols-2 divide-x border-y text-xs">
+              <div className="px-2 py-2">
+                <p className="text-muted-foreground">Sesi</p>
+                <p className="mt-1 text-lg font-semibold leading-none">{student.trainingLogs.length}</p>
+              </div>
+              <div className="px-2 py-2">
+                <p className="text-muted-foreground">Rata-rata RPE</p>
+                <p className="mt-1 text-lg font-semibold leading-none">{averageRpe}</p>
+              </div>
             </div>
           </div>
         </SectionBox>

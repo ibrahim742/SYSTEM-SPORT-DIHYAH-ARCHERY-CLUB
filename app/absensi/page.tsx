@@ -104,6 +104,25 @@ function currentTime() {
     .replace(".", ":");
 }
 
+function sessionPartFromTime(value: string | null | undefined) {
+  if (!value || value === "-") return null;
+  const hour = Number(value.split(":")[0]);
+  if (!Number.isFinite(hour)) return null;
+  return hour < 12 ? "pagi" : "sore";
+}
+
+function buildSessionTitle(rows: AttendanceRow[]) {
+  const parts = new Set(
+    rows
+      .map((row) => sessionPartFromTime(row.checkIn) ?? sessionPartFromTime(row.scheduleTime.split("-")[0]))
+      .filter((part): part is "pagi" | "sore" => Boolean(part))
+  );
+
+  if (parts.has("pagi") && parts.has("sore")) return "Sesi Pagi & Sore";
+  if (parts.has("pagi")) return "Sesi Pagi";
+  return "Sesi Sore";
+}
+
 function statusButtonClass(active: boolean, status: AttendanceStatus) {
   if (!active) return "text-slate-500 hover:bg-white hover:text-slate-900";
   if (status === "Hadir") return "bg-emerald-600 text-white shadow-sm";
@@ -132,8 +151,16 @@ function toApiStatus(status: AttendanceStatus): ApiAttendanceStatus {
   return "TIDAK_MASUK";
 }
 
-function buildRows(schedules: ScheduleApiRow[], session: AttendanceSessionApi | undefined, selectedDate: string): AttendanceRow[] {
-  const recordsByStudentId = new Map(session?.records.map((record) => [record.studentId, record]));
+function sessionsByDate(sessions: AttendanceSessionApi[], selectedDate: string) {
+  return sessions.filter((session) => dateKey(session.date) === selectedDate);
+}
+
+function findSessionByDateAndTitle(sessions: AttendanceSessionApi[], selectedDate: string, title: string) {
+  return sessions.find((session) => dateKey(session.date) === selectedDate && session.title === title);
+}
+
+function buildRows(schedules: ScheduleApiRow[], sessions: AttendanceSessionApi[], selectedDate: string): AttendanceRow[] {
+  const recordsByStudentId = new Map(sessions.flatMap((session) => session.records.map((record) => [record.studentId, record] as const)));
   const selectedDay = dayOfWeekFromDate(selectedDate);
 
   return schedules
@@ -161,10 +188,6 @@ function buildRows(schedules: ScheduleApiRow[], session: AttendanceSessionApi | 
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function findSessionByDate(sessions: AttendanceSessionApi[], selectedDate: string) {
-  return sessions.find((session) => dateKey(session.date) === selectedDate);
-}
-
 export default function AttendancePage() {
   const [students, setStudents] = useState<StudentApiRow[]>([]);
   const [schedules, setSchedules] = useState<ScheduleApiRow[]>([]);
@@ -176,7 +199,6 @@ export default function AttendancePage() {
   const [page, setPage] = useState(1);
   const [recapPage, setRecapPage] = useState(1);
   const [recapOpen, setRecapOpen] = useState(false);
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -215,9 +237,7 @@ export default function AttendancePage() {
 
   useEffect(() => {
     if (!selectedDate) return;
-    const session = findSessionByDate(sessions, selectedDate);
-    setSessionId(session?.id ?? null);
-    setRows(buildRows(schedules, session, selectedDate));
+    setRows(buildRows(schedules, sessionsByDate(sessions, selectedDate), selectedDate));
   }, [selectedDate, schedules, sessions]);
 
   const summary = useMemo(() => {
@@ -380,12 +400,14 @@ export default function AttendancePage() {
 
     setSaving(true);
     setMessage("");
-    const response = await fetch(sessionId ? `/api/attendance/${sessionId}` : "/api/attendance", {
-      method: sessionId ? "PATCH" : "POST",
+    const title = buildSessionTitle(rowsToSave);
+    const existingSession = findSessionByDateAndTitle(sessions, selectedDate, title);
+    const response = await fetch(existingSession ? `/api/attendance/${existingSession.id}` : "/api/attendance", {
+      method: existingSession ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         date: selectedDate,
-        title: "Sesi Sore",
+        title,
         records: rowsToSave.map((row) => ({
           studentId: row.studentId,
           status: toApiStatus(row.status),
